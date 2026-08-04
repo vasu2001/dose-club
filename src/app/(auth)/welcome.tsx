@@ -1,6 +1,6 @@
 import { Button, Column, Host } from '@expo/ui';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -9,6 +9,8 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { width } = useWindowDimensions();
+  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.five;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -35,13 +37,13 @@ export default function WelcomeScreen() {
             <Button
               variant="filled"
               label="Create account"
-              style={{ width: '100%', height: 50 }}
+              style={{ width: buttonWidth, height: 50 }}
               onPress={() => router.push('/signup')}
             />
             <Button
               variant="text"
               label="I already have an account"
-              style={{ width: '100%', height: 44 }}
+              style={{ width: buttonWidth, height: 44 }}
               onPress={() => router.push('/login')}
             />
           </Column>

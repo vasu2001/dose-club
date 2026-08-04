@@ -7,6 +7,7 @@ import {
   Text,
   View,
   useColorScheme,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -35,6 +36,8 @@ export function AuthForm({
 }: AuthFormProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { width } = useWindowDimensions();
+  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.five;
 
   const email = useRef('');
   const password = useRef('');
@@ -116,7 +119,7 @@ export function AuthForm({
                 variant="filled"
                 label={busy ? 'Please wait…' : submitLabel}
                 disabled={busy}
-                style={{ width: '100%', height: 50 }}
+                style={{ width: buttonWidth, height: 50 }}
                 onPress={submit}
               />
             </Host>

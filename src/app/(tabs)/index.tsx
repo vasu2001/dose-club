@@ -1,5 +1,5 @@
 import { Button, Host } from '@expo/ui';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomTabInset, Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -9,6 +9,8 @@ export default function HomeScreen() {
   const { session, signOut } = useAuth();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { width } = useWindowDimensions();
+  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.five;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -26,7 +28,7 @@ export default function HomeScreen() {
           <Button
             variant="outlined"
             label="Sign out"
-            style={{ width: '100%', height: 44 }}
+            style={{ width: buttonWidth, height: 44 }}
             onPress={() => signOut()}
           />
         </Host>
