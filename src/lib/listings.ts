@@ -126,6 +126,9 @@ export async function createProposal(input: {
   if (error.code === '42501') {
     return 'That trade is not allowed — the listing may no longer be active.';
   }
+  if (error.code === '23505') {
+    return 'You already have a pending proposal on this listing.';
+  }
   return error.message;
 }
 
