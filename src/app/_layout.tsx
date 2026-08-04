@@ -4,11 +4,13 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/context/auth';
+import { isProfileComplete } from '@/lib/profile';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session, profile, loading } = useAuth();
+  const complete = isProfileComplete(profile);
 
   // Keep the native splash screen up until the persisted session is restored,
   // so we never flash the wrong screen on launch.
@@ -18,8 +20,13 @@ function RootNavigator() {
     <>
       <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={!!session}>
+        <Stack.Protected guard={!!session && complete}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="share-dose" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="listing/[id]" options={{ presentation: 'modal' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !complete}>
+          <Stack.Screen name="profile-setup" />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" />

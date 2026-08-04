@@ -1,75 +1,116 @@
 import { Button, Host } from '@expo/ui';
-import { StyleSheet, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  useWindowDimensions,
+} from 'react-native';
 
-import { BottomTabInset, Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { ListingCard } from '@/components/listing-card';
+import { ScreenShell } from '@/components/screen-shell';
+import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { fetchMyListings, type Listing } from '@/lib/listings';
 
-export default function HomeScreen() {
-  const { session, signOut } = useAuth();
+export default function ShelfScreen() {
+  const { session, profile } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { width } = useWindowDimensions();
-  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.five;
+  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
+
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!session) return;
+    try {
+      setListings(await fetchMyListings(session.user.id));
+    } finally {
+      setLoaded(true);
+      setRefreshing(false);
+    }
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.hero}>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>ON THE SHELF</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Nothing brewing yet</Text>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>
-            Coffee listings are coming soon. You're signed in as{' '}
-            {session?.user.email ?? 'unknown'}.
-          </Text>
-        </View>
-
-        <Host matchContents seedColor={colors.tint} style={styles.actions}>
-          <Button
-            variant="outlined"
-            label="Sign out"
-            style={{ width: buttonWidth, height: 44 }}
-            onPress={() => signOut()}
+    <ScreenShell
+      eyebrow="YOUR SHELF"
+      title={profile?.display_name ? `${profile.display_name}'s doses` : 'Your doses'}
+      subtitle="Coffees you've put up for trade."
+      insetForTabs>
+      <FlatList
+        data={listings}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+            tintColor={colors.tint}
           />
-        </Host>
-      </SafeAreaView>
-    </View>
+        }
+        renderItem={({ item }) => (
+          <ListingCard
+            listing={item}
+            hideOwner
+            onPress={() => router.push({ pathname: '/listing/[id]', params: { id: item.id } })}
+          />
+        )}
+        ListEmptyComponent={
+          loaded ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                Your shelf is empty. Share a dose of whatever you're brewing to start
+                trading.
+              </Text>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          <Host matchContents seedColor={colors.tint} style={styles.cta}>
+            <Button
+              variant="filled"
+              label="Share a dose"
+              style={{ width: buttonWidth, height: 50 }}
+              onPress={() => router.push('/share-dose')}
+            />
+          </Host>
+        }
+      />
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
+  list: {
+    gap: Spacing.two,
+    paddingBottom: Spacing.four,
   },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-    paddingHorizontal: Spacing.five,
-    paddingBottom: BottomTabInset + Spacing.three,
+  empty: {
+    paddingVertical: Spacing.four,
   },
-  hero: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: Spacing.three,
+  emptyText: {
+    fontSize: 15,
+    lineHeight: 22,
   },
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 3,
-  },
-  title: {
-    fontFamily: Fonts.serif,
-    fontSize: 40,
-    lineHeight: 46,
-    fontWeight: '700',
-  },
-  body: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  actions: {
+  cta: {
     width: '100%',
+    marginTop: Spacing.three,
   },
 });
