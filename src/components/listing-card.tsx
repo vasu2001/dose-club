@@ -40,7 +40,7 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
       ]}>
       <View style={styles.titleRow}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>
-          {listing.coffee_name}
+          {listing.coffee.name}
         </Text>
         {days != null && (
           <View style={[styles.chip, { backgroundColor: colors.backgroundSelected }]}>
@@ -52,20 +52,20 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
       </View>
 
       <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-        {listing.roaster}
-        {listing.origin ? ` · ${listing.origin}` : ''}
+        {listing.coffee.roaster}
+        {listing.coffee.origin ? ` · ${listing.coffee.origin}` : ''}
       </Text>
 
       <View style={[styles.statsRow, { borderTopColor: colors.backgroundSelected }]}>
         <Stat
           label="PROCESS"
-          value={listing.process ?? '—'}
+          value={listing.coffee.process ?? '—'}
           color={colors.textSecondary}
           valueColor={colors.text}
         />
         <Stat
           label="ROAST"
-          value={listing.roast_level ?? '—'}
+          value={listing.coffee.roast_level ?? '—'}
           color={colors.textSecondary}
           valueColor={colors.text}
         />

@@ -2,6 +2,7 @@ import { Button, Host, Row } from '@expo/ui';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,24 +16,32 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
   acceptProposal,
+  confirmTrade,
   declineProposal,
   fetchProposals,
   withdrawProposal,
   type Proposal,
+  type ProposalStatus,
 } from '@/lib/listings';
 
-const STATUS_LABEL: Record<Proposal['status'], string> = {
+const STATUS_LABEL: Record<ProposalStatus, string> = {
   pending: 'PENDING',
-  accepted: 'TRADED ✓',
+  accepted: 'ACCEPTED',
   declined: 'DECLINED',
   withdrawn: 'WITHDRAWN',
+  completed: 'COMPLETED ✓',
 };
+
+const ACTIVE_STATUSES: ProposalStatus[] = ['pending', 'accepted'];
+
+type Segment = 'active' | 'history';
 
 export default function TradesScreen() {
   const { session } = useAuth();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
+  const [segment, setSegment] = useState<Segment>('active');
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -68,19 +77,31 @@ export default function TradesScreen() {
     }
   };
 
-  const incoming = proposals.filter((p) => p.proposer_id !== session?.user.id);
-  const outgoing = proposals.filter((p) => p.proposer_id === session?.user.id);
+  const visible = proposals.filter((p) =>
+    segment === 'active'
+      ? ACTIVE_STATUSES.includes(p.status)
+      : !ACTIVE_STATUSES.includes(p.status),
+  );
+  const incoming = visible.filter((p) => p.proposer_id !== session?.user.id);
+  const outgoing = visible.filter((p) => p.proposer_id === session?.user.id);
 
   const renderProposal = (p: Proposal, direction: 'incoming' | 'outgoing') => {
     const busy = busyId === p.id;
+    const offered = p.offered_coffee?.name ?? 'a coffee';
+    const target = p.listing?.coffee.name ?? 'a listing';
     const title =
       direction === 'incoming'
-        ? `@${p.proposer?.username ?? 'someone'} offers ${p.offered_listing?.coffee_name ?? 'a coffee'}`
-        : `You offered ${p.offered_listing?.coffee_name ?? 'a coffee'}`;
+        ? `@${p.proposer?.username ?? 'someone'} offers ${p.offered_dose_grams}g of ${offered}`
+        : `You offered ${p.offered_dose_grams}g of ${offered}`;
     const subtitle =
       direction === 'incoming'
-        ? `for your ${p.listing?.coffee_name ?? 'listing'}`
-        : `for @${p.listing?.owner?.username ?? 'someone'}'s ${p.listing?.coffee_name ?? 'listing'}`;
+        ? `for your ${target}`
+        : `for @${p.listing?.owner?.username ?? 'someone'}'s ${target}`;
+
+    const myConfirmation =
+      direction === 'incoming' ? p.owner_confirmed_at : p.proposer_confirmed_at;
+    const theirConfirmation =
+      direction === 'incoming' ? p.proposer_confirmed_at : p.owner_confirmed_at;
 
     return (
       <View
@@ -97,7 +118,7 @@ export default function TradesScreen() {
             <Text
               style={[
                 styles.statusText,
-                { color: p.status === 'accepted' ? colors.accent : colors.tint },
+                { color: p.status === 'completed' ? colors.accent : colors.tint },
               ]}>
               {STATUS_LABEL[p.status]}
             </Text>
@@ -142,6 +163,30 @@ export default function TradesScreen() {
             </Row>
           </Host>
         )}
+
+        {p.status === 'accepted' &&
+          (myConfirmation ? (
+            <Text style={[styles.confirmNote, { color: colors.textSecondary }]}>
+              You confirmed. Waiting for the other side to confirm the exchange.
+            </Text>
+          ) : (
+            <>
+              {theirConfirmation != null && (
+                <Text style={[styles.confirmNote, { color: colors.textSecondary }]}>
+                  The other side already confirmed the exchange.
+                </Text>
+              )}
+              <Host matchContents seedColor={colors.tint}>
+                <Button
+                  variant="filled"
+                  label={busy ? '…' : 'Confirm exchange happened'}
+                  disabled={busy}
+                  style={{ height: 40 }}
+                  onPress={() => act(p.id, confirmTrade)}
+                />
+              </Host>
+            </>
+          ))}
       </View>
     );
   };
@@ -152,6 +197,32 @@ export default function TradesScreen() {
       title="Your trades"
       subtitle="Proposals on your doses, and offers you've made."
       insetForTabs>
+      <View style={styles.segments}>
+        {(['active', 'history'] as const).map((s) => {
+          const selected = segment === s;
+          return (
+            <Pressable
+              key={s}
+              onPress={() => setSegment(s)}
+              style={[
+                styles.segment,
+                {
+                  backgroundColor: selected ? colors.backgroundSelected : 'transparent',
+                  borderColor: selected ? colors.tint : colors.backgroundSelected,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.segmentLabel,
+                  { color: selected ? colors.text : colors.textSecondary },
+                ]}>
+                {s === 'active' ? 'Active' : 'History'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -172,7 +243,9 @@ export default function TradesScreen() {
         <Text style={[styles.sectionLabel, { color: colors.accent }]}>INCOMING</Text>
         {incoming.length === 0 && loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
-            No proposals on your doses yet.
+            {segment === 'active'
+              ? 'No active proposals on your doses.'
+              : 'No past proposals on your doses.'}
           </Text>
         ) : (
           incoming.map((p) => renderProposal(p, 'incoming'))
@@ -183,7 +256,9 @@ export default function TradesScreen() {
         </Text>
         {outgoing.length === 0 && loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
-            You haven't offered any trades yet. Find something on Browse.
+            {segment === 'active'
+              ? "No active offers. Find something on Browse."
+              : 'No past offers.'}
           </Text>
         ) : (
           outgoing.map((p) => renderProposal(p, 'outgoing'))
@@ -196,6 +271,22 @@ export default function TradesScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  segments: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    paddingBottom: Spacing.three,
+  },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingVertical: Spacing.two,
+  },
+  segmentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   content: {
     gap: Spacing.two,
@@ -245,6 +336,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontStyle: 'italic',
+  },
+  confirmNote: {
+    fontSize: 13,
+    lineHeight: 19,
   },
   muted: {
     fontSize: 14,

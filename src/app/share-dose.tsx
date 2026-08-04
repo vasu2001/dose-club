@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { CoffeePicker } from '@/components/coffee-picker';
 import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -25,23 +26,16 @@ export default function ShareDoseScreen() {
   const { width } = useWindowDimensions();
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
-  const roaster = useRef('');
-  const coffeeName = useRef('');
-  const origin = useRef('');
-  const process = useRef('');
-  const roastLevel = useRef('');
+  const [coffeeId, setCoffeeId] = useState<string | null>(null);
   const roastDate = useRef('');
   const doseGrams = useRef('18');
-  const notes = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (busy || !session) return;
-    const name = coffeeName.current.trim();
-    const roasterName = roaster.current.trim();
-    if (!name || !roasterName) {
-      setError('Roaster and coffee name are required.');
+    if (!coffeeId) {
+      setError('Pick a coffee (or add one) first.');
       return;
     }
     const dose = Number.parseInt(doseGrams.current, 10);
@@ -58,14 +52,9 @@ export default function ShareDoseScreen() {
     setError(null);
     try {
       const message = await createListing(session.user.id, {
-        roaster: roasterName,
-        coffee_name: name,
-        origin: origin.current.trim() || null,
-        process: process.current.trim() || null,
-        roast_level: roastLevel.current.trim() || null,
+        coffee_id: coffeeId,
         roast_date: date || null,
         dose_grams: dose,
-        notes: notes.current.trim() || null,
       });
       if (message) {
         setError(message);
@@ -83,7 +72,7 @@ export default function ShareDoseScreen() {
     <ScreenShell
       eyebrow="SHARE A DOSE"
       title="Put a coffee up"
-      subtitle="Log the bag so other members can offer a trade."
+      subtitle="Pick from your saved coffees, or log a new bag."
       edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
@@ -92,46 +81,10 @@ export default function ShareDoseScreen() {
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
-          <Field label="ROASTER" colors={colors}>
-            <TextInput
-              placeholder="Sey, Passenger, Blue Tokai…"
-              onChangeText={(t) => {
-                roaster.current = t;
-              }}
-            />
-          </Field>
-          <Field label="COFFEE NAME" colors={colors}>
-            <TextInput
-              placeholder="Finca El Paraiso"
-              onChangeText={(t) => {
-                coffeeName.current = t;
-              }}
-            />
-          </Field>
-          <Field label="ORIGIN (OPTIONAL)" colors={colors}>
-            <TextInput
-              placeholder="Huila, Colombia"
-              onChangeText={(t) => {
-                origin.current = t;
-              }}
-            />
-          </Field>
-          <Field label="PROCESS (OPTIONAL)" colors={colors}>
-            <TextInput
-              placeholder="Washed, natural, anaerobic…"
-              onChangeText={(t) => {
-                process.current = t;
-              }}
-            />
-          </Field>
-          <Field label="ROAST LEVEL (OPTIONAL)" colors={colors}>
-            <TextInput
-              placeholder="Light, medium…"
-              onChangeText={(t) => {
-                roastLevel.current = t;
-              }}
-            />
-          </Field>
+          <Text style={[styles.sectionLabel, { color: colors.accent }]}>THE COFFEE</Text>
+          <CoffeePicker selectedId={coffeeId} onSelect={(c) => setCoffeeId(c.id)} />
+
+          <Text style={[styles.sectionLabel, { color: colors.accent }]}>THE SPECS</Text>
           <Field label="ROAST DATE (OPTIONAL, YYYY-MM-DD)" colors={colors}>
             <TextInput
               placeholder="2026-07-28"
@@ -149,15 +102,6 @@ export default function ShareDoseScreen() {
               keyboardType="number-pad"
               onChangeText={(t) => {
                 doseGrams.current = t;
-              }}
-            />
-          </Field>
-          <Field label="TASTING NOTES (OPTIONAL)" colors={colors}>
-            <TextInput
-              placeholder="Stone fruit, florals, long finish."
-              multiline
-              onChangeText={(t) => {
-                notes.current = t;
               }}
             />
           </Field>
@@ -188,6 +132,12 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.two,
     paddingBottom: Spacing.five,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 3,
+    marginTop: Spacing.two,
   },
   message: {
     fontSize: 15,

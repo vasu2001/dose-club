@@ -19,15 +19,17 @@ Dose Club solves this by letting people trade portions of their bags: you share 
 
 ## Core flow (v1)
 
-1. **Share**: A user with a coffee bag they want to share creates a share listing (the coffee, roaster, origin, process, roast date, how much they're offering, etc.).
-2. **Browse**: Other users browse and filter available listings (and can post their own).
-3. **Propose**: An interested user makes a proposal on a listing — offering one of their own coffees in exchange.
-4. **Decide**: The listing owner reviews incoming proposals and accepts or rejects them.
-5. **Trade**: On acceptance, the trade is marked as successful. (Logistics of the physical exchange are between the users for now.)
+1. **Coffee library**: Users save coffees (roaster, name, origin, process, roast level, notes) once and reuse them everywhere — when sharing and when proposing.
+2. **Share**: A user creates a share listing from a saved coffee plus the specifics of the bag (roast date, dose size). A listing stays active until the owner closes it — one bag can serve several trades.
+3. **Browse**: Other users browse available listings.
+4. **Propose**: An interested user proposes a trade on a listing by offering a coffee + dose from their own library (no listing of their own required). Multiple proposals on one listing are fine, including several from the same user.
+5. **Decide**: The listing owner accepts or declines each proposal independently.
+6. **Confirm**: After acceptance, both sides confirm the physical exchange happened; when both confirm, the trade is completed.
 
 ## Development principles
 
 - Commit as you go: after each meaningful, working change (feature slice, fix, redesign), make a git commit. Don't batch a whole session into one commit.
+- Database schema is declarative: `supabase/schemas/*.sql` is the source of truth for the Postgres schema (tables, RLS, functions, triggers). Update these files alongside any schema change (see https://supabase.com/docs/guides/local-development/declarative-database-schemas).
 
 ## Principles
 

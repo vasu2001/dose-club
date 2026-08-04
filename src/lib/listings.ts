@@ -1,3 +1,4 @@
+import { COFFEE_SELECT, type Coffee } from '@/lib/coffees';
 import { supabase } from '@/lib/supabase';
 
 export type ListingOwner = {
@@ -8,21 +9,17 @@ export type ListingOwner = {
 export type Listing = {
   id: string;
   owner_id: string;
-  roaster: string;
-  coffee_name: string;
-  origin: string | null;
-  process: string | null;
-  roast_level: string | null;
   roast_date: string | null;
   dose_grams: number;
-  notes: string | null;
-  status: 'active' | 'traded' | 'closed';
+  status: 'active' | 'closed';
   created_at: string;
+  coffee: Coffee;
   owner: ListingOwner | null;
 };
 
-const LISTING_SELECT =
-  'id, owner_id, roaster, coffee_name, origin, process, roast_level, roast_date, dose_grams, notes, status, created_at, owner:profiles!listings_owner_id_fkey(username, display_name)';
+const LISTING_SELECT = `id, owner_id, roast_date, dose_grams, status, created_at,
+  coffee:coffees!listings_coffee_id_fkey(${COFFEE_SELECT}),
+  owner:profiles!listings_owner_id_fkey(username, display_name)`;
 
 export async function fetchActiveListings(): Promise<Listing[]> {
   const { data, error } = await supabase
@@ -55,14 +52,9 @@ export async function fetchListing(id: string): Promise<Listing | null> {
 }
 
 export type ListingInput = {
-  roaster: string;
-  coffee_name: string;
-  origin: string | null;
-  process: string | null;
-  roast_level: string | null;
+  coffee_id: string;
   roast_date: string | null;
   dose_grams: number;
-  notes: string | null;
 };
 
 /** Returns an error message, or null on success. */
@@ -86,22 +78,27 @@ export async function closeListing(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export type ProposalStatus = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'completed';
+
 export type Proposal = {
   id: string;
   listing_id: string;
   proposer_id: string;
-  offered_listing_id: string;
+  offered_dose_grams: number;
   message: string | null;
-  status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
+  status: ProposalStatus;
+  proposer_confirmed_at: string | null;
+  owner_confirmed_at: string | null;
   created_at: string;
   listing: Listing | null;
-  offered_listing: Listing | null;
+  offered_coffee: Coffee | null;
   proposer: ListingOwner | null;
 };
 
-const PROPOSAL_SELECT = `id, listing_id, proposer_id, offered_listing_id, message, status, created_at,
+const PROPOSAL_SELECT = `id, listing_id, proposer_id, offered_dose_grams, message, status,
+  proposer_confirmed_at, owner_confirmed_at, created_at,
   listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
-  offered_listing:listings!proposals_offered_listing_id_fkey(${LISTING_SELECT}),
+  offered_coffee:coffees!proposals_offered_coffee_id_fkey(${COFFEE_SELECT}),
   proposer:profiles!proposals_proposer_id_fkey(username, display_name)`;
 
 /** All proposals the current user is involved in (RLS scopes the rows). */
@@ -118,16 +115,14 @@ export async function fetchProposals(): Promise<Proposal[]> {
 export async function createProposal(input: {
   listing_id: string;
   proposer_id: string;
-  offered_listing_id: string;
+  offered_coffee_id: string;
+  offered_dose_grams: number;
   message: string | null;
 }): Promise<string | null> {
   const { error } = await supabase.from('proposals').insert(input);
   if (!error) return null;
   if (error.code === '42501') {
     return 'That trade is not allowed — the listing may no longer be active.';
-  }
-  if (error.code === '23505') {
-    return 'You already have a pending proposal on this listing.';
   }
   return error.message;
 }
@@ -139,6 +134,11 @@ export async function acceptProposal(id: string): Promise<void> {
 
 export async function declineProposal(id: string): Promise<void> {
   const { error } = await supabase.rpc('decline_proposal', { p_proposal_id: id });
+  if (error) throw error;
+}
+
+export async function confirmTrade(id: string): Promise<void> {
+  const { error } = await supabase.rpc('confirm_trade', { p_proposal_id: id });
   if (error) throw error;
 }
 

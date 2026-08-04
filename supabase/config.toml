@@ -1,0 +1,9 @@
+# Supabase project configuration.
+# Declarative schema files live in ./schemas and are applied in
+# lexicographic order via `supabase db diff` / `supabase db push`.
+# Docs: https://supabase.com/docs/guides/local-development/declarative-database-schemas
+
+project_id = "dose-club"
+
+[db.migrations]
+schema_paths = ["./schemas/*.sql"]
