@@ -215,6 +215,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepTitle: {
+    fontFamily: Fonts.mono,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,

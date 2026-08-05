@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
+import { RoastDots } from '@/components/roast-slider';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { roastIndex } from '@/lib/coffees';
 import { daysOffRoast, type Listing } from '@/lib/listings';
 
 type ListingCardProps = {
@@ -30,6 +32,7 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const days = daysOffRoast(listing);
+  const roastIdx = roastIndex(listing.coffee.roast_level);
 
   return (
     <Pressable
@@ -64,12 +67,16 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
           color={colors.textSecondary}
           valueColor={colors.text}
         />
-        <Stat
-          label="ROAST"
-          value={listing.coffee.roast_level ?? '—'}
-          color={colors.textSecondary}
-          valueColor={colors.text}
-        />
+        <View style={styles.stat}>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>ROAST</Text>
+          {roastIdx != null ? (
+            <RoastDots level={listing.coffee.roast_level} />
+          ) : (
+            <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
+              {listing.coffee.roast_level ?? '—'}
+            </Text>
+          )}
+        </View>
         <Stat
           label="DOSE"
           value={`${listing.dose_grams}g`}
@@ -81,7 +88,7 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
       {!hideOwner && listing.owner && (
         <Text style={[styles.owner, { color: colors.textSecondary }]}>
           @{listing.owner.username ?? 'someone'}
-          {listing.owner.display_name ? ` · ${listing.owner.display_name}` : ''}
+          {listing.owner.city ? `  ·  ${listing.owner.city}` : ''}
         </Text>
       )}
 

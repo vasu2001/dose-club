@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,

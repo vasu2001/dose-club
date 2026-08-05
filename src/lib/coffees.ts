@@ -1,5 +1,33 @@
 import { supabase } from '@/lib/supabase';
 
+/** Canonical roast scale, lightest to darkest. Stored in coffees.roast_level. */
+export const ROAST_LEVELS = [
+  'ultralight',
+  'light',
+  'medium',
+  'medium-dark',
+  'dark',
+  'coal',
+] as const;
+
+export type RoastLevel = (typeof ROAST_LEVELS)[number];
+
+export const ROAST_LABEL: Record<RoastLevel, string> = {
+  ultralight: 'Ultralight',
+  light: 'Light',
+  medium: 'Medium',
+  'medium-dark': 'Med-dark',
+  dark: 'Dark',
+  coal: 'Coal',
+};
+
+/** Index on the roast scale, or null for unknown/legacy values. */
+export function roastIndex(level: string | null): number | null {
+  if (!level) return null;
+  const i = ROAST_LEVELS.indexOf(level.toLowerCase() as RoastLevel);
+  return i === -1 ? null : i;
+}
+
 export type Roaster = {
   id: string;
   name: string;

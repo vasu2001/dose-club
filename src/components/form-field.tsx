@@ -1,7 +1,7 @@
 import { Host } from '@expo/ui';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Colors, Spacing } from '@/constants/theme';
+import { Fonts, Colors, Spacing } from '@/constants/theme';
 
 type FieldProps = {
   label: string;
@@ -26,6 +26,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,

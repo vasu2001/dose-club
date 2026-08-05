@@ -302,6 +302,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.five,
   },
   sectionLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,

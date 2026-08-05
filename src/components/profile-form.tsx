@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import { Field } from '@/components/form-field';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Fonts, Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { saveProfile, type Profile } from '@/lib/profile';
 
@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   fieldLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,

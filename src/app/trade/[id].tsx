@@ -380,6 +380,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sectionLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,

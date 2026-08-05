@@ -1,9 +1,11 @@
 import { Button, Host, TextInput } from '@expo/ui';
+import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +23,14 @@ import { useAuth } from '@/context/auth';
 import { type Coffee } from '@/lib/coffees';
 import { createListing } from '@/lib/listings';
 import { createReview } from '@/lib/reviews';
+
+/** Local YYYY-MM-DD (toISOString would shift the day across timezones). */
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function StepLabel({
   step,
@@ -50,7 +60,7 @@ export default function ShareDoseScreen() {
 
   const [coffee, setCoffee] = useState<Coffee | null>(null);
   const [dose, setDose] = useState<number | null>(18);
-  const roastDate = useRef('');
+  const [roastDate, setRoastDate] = useState<Date | null>(null);
   const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,17 +71,12 @@ export default function ShareDoseScreen() {
       setError('Dose should be between 5g and 100g.');
       return;
     }
-    const date = roastDate.current.trim();
-    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      setError('Roast date should look like 2026-07-28.');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
       const message = await createListing(session.user.id, {
         coffee_id: coffee.id,
-        roast_date: date || null,
+        roast_date: roastDate ? toIsoDate(roastDate) : null,
         dose_grams: dose,
       });
       if (message) {
@@ -120,16 +125,37 @@ export default function ShareDoseScreen() {
               </Text>
               <DoseChips value={dose} onChange={setDose} />
 
-              <Field label="ROASTED ON (OPTIONAL, YYYY-MM-DD)" colors={colors}>
-                <TextInput
-                  placeholder="2026-07-28"
-                  keyboardType="numbers-and-punctuation"
-                  autoCorrect={false}
-                  onChangeText={(t) => {
-                    roastDate.current = t;
-                  }}
-                />
-              </Field>
+              <View style={[styles.dateCard, { backgroundColor: colors.backgroundElement }]}>
+                <View style={styles.dateText}>
+                  <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
+                    ROASTED ON
+                  </Text>
+                  {roastDate == null && (
+                    <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
+                      Fresher reads better on the shelf.
+                    </Text>
+                  )}
+                </View>
+                {roastDate != null ? (
+                  <View style={styles.dateControls}>
+                    <DateTimePicker
+                      value={roastDate}
+                      mode="date"
+                      display="compact"
+                      maximumDate={new Date()}
+                      accentColor={colors.tint}
+                      onValueChange={(_, date) => setRoastDate(date)}
+                    />
+                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
+                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => setRoastDate(new Date())} hitSlop={8}>
+                    <Text style={[styles.dateAdd, { color: colors.tint }]}>+ Add date</Text>
+                  </Pressable>
+                )}
+              </View>
 
               <Field label="A WORD FROM YOU (OPTIONAL, PUBLIC)" colors={colors}>
                 <TextInput
@@ -182,6 +208,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepTitle: {
+    fontFamily: Fonts.mono,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,
@@ -193,6 +220,41 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  dateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: 16,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    minHeight: 56,
+  },
+  dateText: {
+    flex: 1,
+    gap: 2,
+  },
+  dateLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  dateHint: {
+    fontSize: 13,
+  },
+  dateControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  dateClear: {
+    fontSize: 15,
+    paddingHorizontal: Spacing.one,
+  },
+  dateAdd: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   message: {
     fontSize: 15,

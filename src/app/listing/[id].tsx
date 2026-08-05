@@ -1,7 +1,8 @@
 import { Button, Host } from '@expo/ui';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,12 +11,34 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { ListingCard } from '@/components/listing-card';
+import { RoastDots } from '@/components/roast-slider';
 import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { closeListing, fetchListing, type Listing } from '@/lib/listings';
+import { ROAST_LABEL, roastIndex, ROAST_LEVELS } from '@/lib/coffees';
+import { closeListing, daysOffRoast, fetchListing, type Listing } from '@/lib/listings';
 import { fetchCoffeeReviews, type CoffeeReview } from '@/lib/reviews';
+
+function SpecRow({
+  label,
+  value,
+  colors,
+  children,
+}: {
+  label: string;
+  value?: string;
+  colors: (typeof Colors)['light' | 'dark'];
+  children?: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.specRow, { borderBottomColor: colors.backgroundSelected }]}>
+      <Text style={[styles.specLabel, { color: colors.textSecondary }]}>{label}</Text>
+      {children ?? (
+        <Text style={[styles.specValue, { color: colors.text }]}>{value}</Text>
+      )}
+    </View>
+  );
+}
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -73,24 +96,94 @@ export default function ListingDetailScreen() {
     );
   }
 
+  const days = daysOffRoast(listing);
+  const roastIdx = roastIndex(listing.coffee.roast_level);
+  const owner = listing.owner;
+  const ownerInitial = (owner?.display_name ?? owner?.username ?? '?')
+    .charAt(0)
+    .toUpperCase();
+
   return (
     <ScreenShell
-      eyebrow={isOwner ? 'YOUR LISTING' : 'TRADING FOR'}
+      eyebrow={isOwner ? 'ON YOUR SHELF' : `TRADING FOR · ${listing.dose_grams}G`}
       title={listing.coffee.name}
       subtitle={`${listing.coffee.roaster.name}${listing.coffee.origin ? ` · ${listing.coffee.origin}` : ''}`}
       edges={['bottom']}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-        <ListingCard listing={listing} hideOwner={isOwner} />
+        <View style={styles.heroRow}>
+          <View style={[styles.heroTile, { backgroundColor: colors.backgroundElement }]}>
+            <Text style={[styles.heroValue, { color: colors.text }]}>
+              {listing.dose_grams}g
+            </Text>
+            <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>DOSE</Text>
+          </View>
+          <View style={[styles.heroTile, { backgroundColor: colors.backgroundElement }]}>
+            <Text style={[styles.heroValue, { color: colors.text }]}>
+              {days == null ? '—' : days === 0 ? 'Today' : `${days}d`}
+            </Text>
+            <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>OFF ROAST</Text>
+          </View>
+          <View style={[styles.heroTile, { backgroundColor: colors.backgroundElement }]}>
+            {roastIdx != null ? (
+              <RoastDots level={listing.coffee.roast_level} size={7} />
+            ) : (
+              <Text style={[styles.heroValue, { color: colors.text }]}>—</Text>
+            )}
+            <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
+              {roastIdx != null
+                ? ROAST_LABEL[ROAST_LEVELS[roastIdx]].toUpperCase()
+                : 'ROAST'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.specCard, { backgroundColor: colors.backgroundElement }]}>
+          {listing.coffee.process != null && (
+            <SpecRow label="PROCESS" value={listing.coffee.process} colors={colors} />
+          )}
+          {listing.coffee.varietal != null && (
+            <SpecRow label="VARIETAL" value={listing.coffee.varietal} colors={colors} />
+          )}
+          {listing.coffee.origin != null && (
+            <SpecRow label="ORIGIN" value={listing.coffee.origin} colors={colors} />
+          )}
+          {listing.roast_date != null && (
+            <SpecRow label="ROASTED ON" value={listing.roast_date} colors={colors} />
+          )}
+        </View>
 
         {listing.coffee.roaster_notes != null && (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.accent }]}>
-              ROASTER'S NOTES
+          <Text style={[styles.notes, { color: colors.textSecondary }]}>
+            “{listing.coffee.roaster_notes}”
+            <Text style={[styles.notesBy, { color: colors.textSecondary }]}>
+              {'  —'} {listing.coffee.roaster.name}
             </Text>
-            <Text style={[styles.notes, { color: colors.textSecondary }]}>
-              “{listing.coffee.roaster_notes}”
-            </Text>
-          </>
+          </Text>
+        )}
+
+        {!isOwner && owner != null && (
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/user/[id]', params: { id: listing.owner_id } })
+            }
+            style={({ pressed }) => [
+              styles.ownerCard,
+              { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.85 : 1 },
+            ]}>
+            <View style={[styles.ownerAvatar, { backgroundColor: colors.backgroundSelected }]}>
+              <Text style={[styles.ownerInitial, { color: colors.tint }]}>{ownerInitial}</Text>
+            </View>
+            <View style={styles.ownerText}>
+              <Text style={[styles.ownerName, { color: colors.text }]}>
+                {owner.display_name ?? `@${owner.username ?? 'someone'}`}
+              </Text>
+              <Text style={[styles.ownerMeta, { color: colors.textSecondary }]}>
+                @{owner.username ?? 'someone'}
+                {owner.city ? `  ·  ${owner.city}` : ''}
+              </Text>
+            </View>
+            <Text style={[styles.ownerChevron, { color: colors.textSecondary }]}>›</Text>
+          </Pressable>
         )}
 
         {reviews.length > 0 && (
@@ -114,21 +207,15 @@ export default function ListingDetailScreen() {
           </>
         )}
 
-        {!isOwner && listing.owner != null && (
-          <Link href={{ pathname: '/user/[id]', params: { id: listing.owner_id } }}>
-            <Text style={[styles.profileLink, { color: colors.tint }]}>
-              View @{listing.owner.username ?? 'someone'}'s profile →
-            </Text>
-          </Link>
-        )}
-
         {error != null && (
           <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
         )}
+      </ScrollView>
 
+      <View style={styles.footer}>
         {isOwner ? (
           listing.status === 'active' && (
-            <Host matchContents seedColor={colors.tint} style={styles.actions}>
+            <Host matchContents seedColor={colors.tint}>
               <Button
                 variant="outlined"
                 label={busy ? 'Removing…' : 'Remove from shelf'}
@@ -143,10 +230,10 @@ export default function ListingDetailScreen() {
             This dose is no longer available.
           </Text>
         ) : (
-          <Host matchContents seedColor={colors.tint} style={styles.actions}>
+          <Host matchContents seedColor={colors.tint}>
             <Button
               variant="filled"
-              label="Propose a trade"
+              label={`Offer a trade for this ${listing.dose_grams}g`}
               style={{ width: buttonWidth, height: 50 }}
               onPress={() =>
                 router.push({ pathname: '/propose/[listingId]', params: { listingId: listing.id } })
@@ -154,7 +241,7 @@ export default function ListingDetailScreen() {
             />
           </Host>
         )}
-      </ScrollView>
+      </View>
     </ScreenShell>
   );
 }
@@ -165,9 +252,96 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.four,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  heroTile: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    borderRadius: 16,
+    paddingVertical: Spacing.three,
+  },
+  heroValue: {
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  heroLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  specCard: {
+    borderRadius: 16,
+    paddingHorizontal: Spacing.three,
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.two + 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  specLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  specValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  notes: {
+    fontFamily: Fonts.serif,
+    fontSize: 17,
+    lineHeight: 26,
+    fontStyle: 'italic',
+  },
+  notesBy: {
+    fontSize: 13,
+    fontStyle: 'normal',
+  },
+  ownerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 2,
+    borderRadius: 16,
+    padding: Spacing.two + 2,
+  },
+  ownerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerInitial: {
+    fontFamily: Fonts.serif,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  ownerText: {
+    flex: 1,
+    gap: 1,
+  },
+  ownerName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  ownerMeta: {
+    fontSize: 13,
+  },
+  ownerChevron: {
+    fontSize: 24,
+    lineHeight: 26,
   },
   sectionLabel: {
+    fontFamily: Fonts.mono,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,
@@ -186,25 +360,16 @@ const styles = StyleSheet.create({
   reviewMeta: {
     fontSize: 12,
   },
-  notes: {
-    fontFamily: Fonts.serif,
-    fontSize: 17,
-    lineHeight: 26,
-    fontStyle: 'italic',
-  },
-  profileLink: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
   muted: {
     fontSize: 15,
     lineHeight: 22,
+    textAlign: 'center',
   },
   message: {
     fontSize: 15,
     lineHeight: 21,
   },
-  actions: {
-    width: '100%',
+  footer: {
+    paddingTop: Spacing.two,
   },
 });

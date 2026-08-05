@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { Field } from '@/components/form-field';
+import { RoastSlider } from '@/components/roast-slider';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
@@ -18,6 +19,7 @@ import {
   searchCoffees,
   searchRoasters,
   type Coffee,
+  type RoastLevel,
   type Roaster,
 } from '@/lib/coffees';
 
@@ -93,6 +95,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
   const [roasterQuery, setRoasterQuery] = useState('');
   const [roasterSuggestions, setRoasterSuggestions] = useState<Roaster[]>([]);
   const [roasterPickCount, setRoasterPickCount] = useState(0);
+  const [roastLevel, setRoastLevel] = useState<RoastLevel | null>(null);
   const roaster = useRef('');
   const name = useRef('');
   const origin = useRef('');
@@ -161,7 +164,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
         origin: origin.current.trim() || null,
         varietal: varietal.current.trim() || null,
         process: process.current.trim() || null,
-        roast_level: null,
+        roast_level: roastLevel,
         roaster_notes: roasterNotes.current.trim() || null,
       });
       setMine((prev) => [coffee, ...prev]);
@@ -247,6 +250,11 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
             }}
           />
         </Field>
+
+        <View style={[styles.roastCard, { backgroundColor: colors.backgroundElement }]}>
+          <Text style={[styles.roastLabel, { color: colors.textSecondary }]}>ROAST LEVEL</Text>
+          <RoastSlider value={roastLevel} onChange={setRoastLevel} />
+        </View>
 
         {showDetail ? (
           <>
@@ -471,6 +479,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     paddingTop: 2,
+  },
+  roastCard: {
+    borderRadius: 16,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    gap: Spacing.one,
+  },
+  roastLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   suggestions: {
     flexDirection: 'row',

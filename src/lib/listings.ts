@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 export type ListingOwner = {
   username: string | null;
   display_name: string | null;
+  city: string | null;
 };
 
 export type Listing = {
@@ -19,7 +20,7 @@ export type Listing = {
 
 const LISTING_SELECT = `id, owner_id, roast_date, dose_grams, status, created_at,
   coffee:coffees!listings_coffee_id_fkey(${COFFEE_SELECT}),
-  owner:profiles!listings_owner_id_fkey(username, display_name)`;
+  owner:profiles!listings_owner_id_fkey(username, display_name, city)`;
 
 export async function fetchActiveListings(): Promise<Listing[]> {
   const { data, error } = await supabase
@@ -103,7 +104,7 @@ const PROPOSAL_SELECT = `id, listing_id, proposer_id, offered_dose_grams, messag
   proposer_confirmed_at, owner_confirmed_at, accepted_at, declined_at, withdrawn_at, completed_at, created_at,
   listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
   offered_coffee:coffees!proposals_offered_coffee_id_fkey(${COFFEE_SELECT}),
-  proposer:profiles!proposals_proposer_id_fkey(username, display_name)`;
+  proposer:profiles!proposals_proposer_id_fkey(username, display_name, city)`;
 
 /** All proposals the current user is involved in (RLS scopes the rows). */
 export async function fetchProposals(): Promise<Proposal[]> {

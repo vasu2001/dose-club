@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   eyebrow: {
+    fontFamily: Fonts.mono,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 3,
