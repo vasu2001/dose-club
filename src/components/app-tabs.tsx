@@ -1,11 +1,21 @@
+import { useQuery } from '@tanstack/react-query';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { fetchUnreadCount } from '@/lib/notifications';
+import { queryKeys } from '@/lib/query';
 
 export default function AppTabs() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+
+  // Light poll keeps the badge honest while the app is open.
+  const { data: unread = 0 } = useQuery({
+    queryKey: queryKeys.unreadCount,
+    queryFn: fetchUnreadCount,
+    refetchInterval: 30_000,
+  });
 
   return (
     <NativeTabs
@@ -31,6 +41,14 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="trades">
         <NativeTabs.Trigger.Label>Trades</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="arrow.left.arrow.right" md="swap_horiz" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="inbox">
+        <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="tray" md="inbox" />
+        <NativeTabs.Trigger.Badge hidden={unread === 0}>
+          {String(unread)}
+        </NativeTabs.Trigger.Badge>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

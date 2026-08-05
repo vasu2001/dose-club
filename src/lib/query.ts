@@ -39,4 +39,6 @@ export const queryKeys = {
   myReceivedReview: (proposalId: string, userId: string) =>
     ['reviews', 'received', proposalId, userId] as const,
   myCoffees: (userId: string) => ['coffees', 'mine', userId] as const,
+  notifications: ['notifications'] as const,
+  unreadCount: ['notifications', 'unread-count'] as const,
 };
