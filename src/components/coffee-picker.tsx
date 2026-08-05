@@ -74,6 +74,9 @@ export function CoffeePicker({ selectedId, onSelect }: CoffeePickerProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [roasterQuery, setRoasterQuery] = useState('');
+  // Bumped when a suggestion is picked, to remount the uncontrolled input
+  // with the chosen name as its defaultValue.
+  const [roasterPickCount, setRoasterPickCount] = useState(0);
   const [roasterSuggestions, setRoasterSuggestions] = useState<Roaster[]>([]);
   const roaster = useRef('');
   const name = useRef('');
@@ -205,6 +208,7 @@ export function CoffeePicker({ selectedId, onSelect }: CoffeePickerProps) {
         <View style={styles.addForm}>
           <Field label="ROASTER" colors={colors}>
             <TextInput
+              key={roasterPickCount}
               placeholder="Blue Tokai"
               autoCorrect={false}
               defaultValue={roaster.current}
@@ -223,6 +227,7 @@ export function CoffeePicker({ selectedId, onSelect }: CoffeePickerProps) {
                     roaster.current = r.name;
                     setRoasterQuery('');
                     setRoasterSuggestions([]);
+                    setRoasterPickCount((n) => n + 1);
                   }}
                   style={[styles.suggestionChip, { backgroundColor: colors.backgroundSelected }]}>
                   <Text style={[styles.suggestionText, { color: colors.tint }]}>{r.name}</Text>
