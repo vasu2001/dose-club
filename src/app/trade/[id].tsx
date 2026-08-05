@@ -314,10 +314,11 @@ export default function TradeDetailScreen() {
               <Text style={[styles.sectionLabel, { color: colors.accent }]}>
                 HOW WAS {receivedCoffee.name.toUpperCase()}?
               </Text>
-              <Field label="YOUR REVIEW (PUBLIC)" colors={colors}>
+              <Field label="YOUR REVIEW" colors={colors} inputHeight={72}>
                 <TextInput
                   placeholder="Brewed it yet? Tell the club how it cups."
                   multiline
+                  numberOfLines={3}
                   onChangeText={(t) => {
                     reviewBody.current = t;
                   }}

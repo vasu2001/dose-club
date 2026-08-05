@@ -284,10 +284,11 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
                 }}
               />
             </Field>
-            <Field label="ROASTER'S NOTES" colors={colors}>
+            <Field label="ROASTER'S NOTES" colors={colors} inputHeight={72}>
               <TextInput
                 placeholder="What's on the bag: stone fruit, jasmine, honey…"
                 multiline
+                numberOfLines={3}
                 onChangeText={(t) => {
                   roasterNotes.current = t;
                 }}

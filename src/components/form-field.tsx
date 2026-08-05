@@ -11,10 +11,15 @@ type FieldProps = {
   colors: (typeof Colors)['light' | 'dark'];
   /** Inline validation error — paints the card border red and shows the message. */
   error?: string | null;
+  /**
+   * Fixed height for the native input host. Required for multiline inputs —
+   * SwiftUI's growing TextField measures as zero height under matchContents.
+   */
+  inputHeight?: number;
   children: React.ReactNode;
 };
 
-export function Field({ label, colors, error, children }: FieldProps) {
+export function Field({ label, colors, error, inputHeight, children }: FieldProps) {
   const inputRef = useRef<Focusable | null>(null);
   // Attach a ref to the (single) input child so tapping anywhere on the
   // card — label, padding, far right — focuses it.
@@ -37,7 +42,11 @@ export function Field({ label, colors, error, children }: FieldProps) {
           ]}>
           {label}
         </Text>
-        <Host matchContents>{child}</Host>
+        {inputHeight != null ? (
+          <Host style={{ height: inputHeight }}>{child}</Host>
+        ) : (
+          <Host matchContents>{child}</Host>
+        )}
       </Pressable>
       {error != null && (
         <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>

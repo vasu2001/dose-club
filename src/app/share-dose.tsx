@@ -61,6 +61,8 @@ export default function ShareDoseScreen() {
   const [coffee, setCoffee] = useState<Coffee | null>(null);
   const [dose, setDose] = useState<number | null>(18);
   const [roastDate, setRoastDate] = useState<Date | null>(null);
+  // "+ Add date" opens an inline calendar; nothing is picked until a tap.
+  const [pickingDate, setPickingDate] = useState(false);
   const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -126,41 +128,68 @@ export default function ShareDoseScreen() {
               <DoseChips value={dose} onChange={setDose} />
 
               <View style={[styles.dateCard, { backgroundColor: colors.backgroundElement }]}>
-                <View style={styles.dateText}>
-                  <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
-                    ROASTED ON
-                  </Text>
-                  {roastDate == null && (
-                    <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
-                      Fresher reads better on the shelf.
+                <View style={styles.dateRow}>
+                  <View style={styles.dateText}>
+                    <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
+                      ROASTED ON
                     </Text>
+                    {roastDate == null && !pickingDate && (
+                      <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
+                        Fresher reads better on the shelf.
+                      </Text>
+                    )}
+                  </View>
+                  {roastDate != null ? (
+                    <View style={styles.dateControls}>
+                      <Pressable
+                        onPress={() => {
+                          setRoastDate(null);
+                          setPickingDate(false);
+                        }}
+                        hitSlop={8}>
+                        <Text style={[styles.dateClear, { color: colors.textSecondary }]}>
+                          ✕
+                        </Text>
+                      </Pressable>
+                      <DateTimePicker
+                        value={roastDate}
+                        mode="date"
+                        display="compact"
+                        maximumDate={new Date()}
+                        accentColor={colors.tint}
+                        style={styles.datePicker}
+                        onValueChange={(_, date) => setRoastDate(date)}
+                      />
+                    </View>
+                  ) : (
+                    <Pressable onPress={() => setPickingDate((v) => !v)} hitSlop={8}>
+                      <Text style={[styles.dateAdd, { color: colors.tint }]}>
+                        {pickingDate ? 'Cancel' : '+ Add date'}
+                      </Text>
+                    </Pressable>
                   )}
                 </View>
-                {roastDate != null ? (
-                  <View style={styles.dateControls}>
-                    <DateTimePicker
-                      value={roastDate}
-                      mode="date"
-                      display="compact"
-                      maximumDate={new Date()}
-                      accentColor={colors.tint}
-                      onValueChange={(_, date) => setRoastDate(date)}
-                    />
-                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
-                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable onPress={() => setRoastDate(new Date())} hitSlop={8}>
-                    <Text style={[styles.dateAdd, { color: colors.tint }]}>+ Add date</Text>
-                  </Pressable>
+                {pickingDate && roastDate == null && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="date"
+                    display="inline"
+                    maximumDate={new Date()}
+                    accentColor={colors.tint}
+                    style={styles.dateCalendar}
+                    onValueChange={(_, date) => {
+                      setRoastDate(date);
+                      setPickingDate(false);
+                    }}
+                  />
                 )}
               </View>
 
-              <Field label="A WORD FROM YOU (OPTIONAL, PUBLIC)" colors={colors}>
+              <Field label="A WORD FROM YOU" colors={colors} inputHeight={72}>
                 <TextInput
                   placeholder="How it brews for you — recipe, impressions…"
                   multiline
+                  numberOfLines={3}
                   onChangeText={(t) => {
                     note.current = t;
                   }}
@@ -222,17 +251,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   dateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.two,
     borderRadius: 16,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
     minHeight: 56,
   },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 36,
+  },
   dateText: {
     flex: 1,
     gap: 2,
+  },
+  dateCalendar: {
+    width: '100%',
+    height: 330,
   },
   dateLabel: {
     fontFamily: Fonts.mono,
@@ -247,6 +284,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  datePicker: {
+    width: 118,
+    height: 36,
   },
   dateClear: {
     fontSize: 15,

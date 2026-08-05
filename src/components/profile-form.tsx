@@ -151,11 +151,12 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             }}
           />
         </Field>
-        <Field label="ABOUT YOUR COFFEE (OPTIONAL)" colors={colors}>
+        <Field label="ABOUT YOUR COFFEE (OPTIONAL)" colors={colors} inputHeight={72}>
           <TextInput
             placeholder="Light roasts, V60, always chasing washed Ethiopians."
             defaultValue={profile?.bio ?? undefined}
             multiline
+            numberOfLines={3}
             onChangeText={(text) => {
               bio.current = text;
             }}

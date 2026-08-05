@@ -154,20 +154,23 @@ export default function ProposeScreen() {
 
               <Field
                 label={`MESSAGE TO @${listing.owner?.username?.toUpperCase() ?? 'THEM'} (OPTIONAL)`}
-                colors={colors}>
+                colors={colors}
+                inputHeight={72}>
                 <TextInput
                   placeholder="Would love to swap a dose of this for your bag."
                   multiline
+                  numberOfLines={3}
                   onChangeText={(t) => {
                     message.current = t;
                   }}
                 />
               </Field>
 
-              <Field label="A WORD ON YOUR COFFEE (OPTIONAL, PUBLIC)" colors={colors}>
+              <Field label="A WORD ON YOUR COFFEE" colors={colors} inputHeight={72}>
                 <TextInput
                   placeholder="How it brews for you — recipe, impressions…"
                   multiline
+                  numberOfLines={3}
                   onChangeText={(t) => {
                     note.current = t;
                   }}
