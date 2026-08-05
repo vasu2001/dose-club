@@ -46,9 +46,9 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="inbox">
         <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="tray" md="inbox" />
-        <NativeTabs.Trigger.Badge hidden={unread === 0}>
-          {String(unread)}
-        </NativeTabs.Trigger.Badge>
+        {unread > 0 && (
+          <NativeTabs.Trigger.Badge>{String(unread)}</NativeTabs.Trigger.Badge>
+        )}
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

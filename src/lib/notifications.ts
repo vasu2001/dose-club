@@ -19,10 +19,13 @@ export type AppNotification = {
   listing_id: string | null;
   read_at: string | null;
   created_at: string;
+  actor: { username: string | null; display_name: string | null } | null;
+  listing: { id: string; coffee: { name: string } } | null;
 };
 
-const NOTIFICATION_SELECT =
-  'id, user_id, actor_id, type, title, proposal_id, listing_id, read_at, created_at';
+const NOTIFICATION_SELECT = `id, user_id, actor_id, type, title, proposal_id, listing_id, read_at, created_at,
+  actor:profiles!notifications_actor_id_fkey(username, display_name),
+  listing:listings!notifications_listing_id_fkey(id, coffee:coffees!listings_coffee_id_fkey(name))`;
 
 /** Current user's inbox, newest first (RLS scopes the rows). */
 export async function fetchNotifications(): Promise<AppNotification[]> {
@@ -32,7 +35,7 @@ export async function fetchNotifications(): Promise<AppNotification[]> {
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
-  return (data as AppNotification[]) ?? [];
+  return (data as unknown as AppNotification[]) ?? [];
 }
 
 export async function fetchUnreadCount(): Promise<number> {
