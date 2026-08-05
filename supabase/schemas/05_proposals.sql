@@ -202,9 +202,13 @@ begin
 end;
 $$;
 
--- Owner accepts a pending proposal. The listing stays active — a bag can
--- serve several trades. Every other pending proposal on the listing is
--- archived as 'not_accepted'.
+-- Accepting a proposal commits every involved listing (the target and any
+-- listings offered as items):
+--   * other pending proposals ON those listings -> not_accepted
+--   * pending proposals OFFERING those listings as items -> withdrawn
+--   * the listings close (leave Browse)
+-- Until then nothing is blocked: a listing with pending proposals can still
+-- be offered elsewhere — first accepted trade wins the bag.
 create or replace function public.accept_proposal(p_proposal_id uuid)
 returns void
 language plpgsql
@@ -215,6 +219,7 @@ declare
   v_listing_id uuid;
   v_owner uuid;
   v_status text;
+  v_listing_ids uuid[];
 begin
   select listing_id, status into v_listing_id, v_status
   from public.proposals
@@ -241,11 +246,29 @@ begin
   set status = 'accepted'
   where id = p_proposal_id;
 
+  select array_agg(listing_id) || v_listing_id into v_listing_ids
+  from public.proposal_items
+  where proposal_id = p_proposal_id and listing_id is not null;
+  v_listing_ids := coalesce(v_listing_ids, array[v_listing_id]);
+
   update public.proposals
   set status = 'not_accepted'
-  where listing_id = v_listing_id
+  where status = 'pending'
     and id <> p_proposal_id
-    and status = 'pending';
+    and listing_id = any (v_listing_ids);
+
+  update public.proposals
+  set status = 'withdrawn'
+  where status = 'pending'
+    and id <> p_proposal_id
+    and id in (
+      select proposal_id from public.proposal_items
+      where listing_id = any (v_listing_ids)
+    );
+
+  update public.listings
+  set status = 'closed'
+  where id = any (v_listing_ids);
 end;
 $$;
 
