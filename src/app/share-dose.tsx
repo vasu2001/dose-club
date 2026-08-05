@@ -116,7 +116,8 @@ export default function ShareDoseScreen() {
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive">
           <StepLabel step="01" title="THE COFFEE" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 

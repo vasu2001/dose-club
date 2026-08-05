@@ -117,7 +117,8 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive">
         <Field label="DISPLAY NAME" colors={colors} error={fieldErrors.display_name}>
           <TextInput
             placeholder="June Kim"

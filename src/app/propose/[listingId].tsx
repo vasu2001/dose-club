@@ -133,7 +133,8 @@ export default function ProposeScreen() {
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive">
           <StepLabel step="01" title="YOUR OFFER" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 
