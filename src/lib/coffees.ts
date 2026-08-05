@@ -21,10 +21,10 @@ export const ROAST_LABEL: Record<RoastLevel, string> = {
   coal: 'Coal',
 };
 
-/** Index on the roast scale, or null for unknown/legacy values. */
+/** Index on the roast scale, or null when unset. */
 export function roastIndex(level: string | null): number | null {
   if (!level) return null;
-  const i = ROAST_LEVELS.indexOf(level.toLowerCase() as RoastLevel);
+  const i = ROAST_LEVELS.indexOf(level as RoastLevel);
   return i === -1 ? null : i;
 }
 

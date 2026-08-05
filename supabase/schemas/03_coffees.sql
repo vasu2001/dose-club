@@ -10,7 +10,7 @@ create table public.coffees (
   origin text check (char_length(origin) <= 80),
   varietal text check (char_length(varietal) <= 80),
   process text check (char_length(process) <= 40),
-  roast_level text check (char_length(roast_level) <= 40),
+  roast_level text check (roast_level in ('ultralight', 'light', 'medium', 'medium-dark', 'dark', 'coal')),
   roaster_notes text check (char_length(roaster_notes) <= 500),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

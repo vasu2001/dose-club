@@ -1,5 +1,7 @@
 import { Button, Host, TextInput } from '@expo/ui';
 import { useRef, useState } from 'react';
+
+import { isKnownCity } from '@/constants/cities';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
+import { CityPicker } from '@/components/city-picker';
 import { Field } from '@/components/form-field';
 import { Fonts, Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
@@ -31,7 +34,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
 
   const displayName = useRef(profile?.display_name ?? '');
   const username = useRef(profile?.username ?? '');
-  const city = useRef(profile?.city ?? '');
+  const [city, setCity] = useState<string | null>(profile?.city ?? null);
   const phone = useRef(profile?.phone ?? '');
   const bio = useRef(profile?.bio ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +45,13 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
     if (busy || !session) return;
     const name = displayName.current.trim();
     const handle = username.current.trim().toLowerCase();
-    const cityName = city.current.trim();
     const phoneNumber = phone.current.trim();
-    if (!name || !handle || !cityName || !phoneNumber) {
+    if (!name || !handle || !city || !phoneNumber) {
       setError('Display name, username, city and phone are required.');
+      return;
+    }
+    if (!isKnownCity(city)) {
+      setError('Pick your city from the list.');
       return;
     }
     if (!/^[a-z0-9_]{3,24}$/.test(handle)) {
@@ -63,7 +69,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
       const message = await saveProfile(session.user.id, {
         display_name: name,
         username: handle,
-        city: cityName,
+        city,
         phone: phoneNumber,
         bio: bio.current.trim() || null,
       });
@@ -109,15 +115,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             }}
           />
         </Field>
-        <Field label="CITY" colors={colors}>
-          <TextInput
-            placeholder="Bengaluru"
-            defaultValue={profile?.city ?? undefined}
-            onChangeText={(text) => {
-              city.current = text;
-            }}
-          />
-        </Field>
+        <CityPicker value={city} onChange={setCity} />
         <Field label="PHONE" colors={colors}>
           <TextInput
             placeholder="+91 98765 43210"

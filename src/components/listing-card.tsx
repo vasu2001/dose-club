@@ -72,9 +72,7 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
           {roastIdx != null ? (
             <RoastDots level={listing.coffee.roast_level} />
           ) : (
-            <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
-              {listing.coffee.roast_level ?? '—'}
-            </Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>—</Text>
           )}
         </View>
         <Stat
