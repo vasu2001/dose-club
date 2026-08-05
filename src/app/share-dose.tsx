@@ -141,9 +141,6 @@ export default function ShareDoseScreen() {
                 </View>
                 {roastDate != null ? (
                   <View style={styles.dateControls}>
-                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
-                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
-                    </Pressable>
                     <Pressable
                       onPress={() => setPickingDate(true)}
                       style={[styles.datePill, { backgroundColor: colors.backgroundSelected }]}>
@@ -154,6 +151,9 @@ export default function ShareDoseScreen() {
                           year: 'numeric',
                         })}
                       </Text>
+                    </Pressable>
+                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
+                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
                     </Pressable>
                   </View>
                 ) : (
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   dateControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.one + 2,
   },
   dateClear: {
     fontSize: 15,
