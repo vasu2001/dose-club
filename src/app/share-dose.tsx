@@ -7,17 +7,38 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  View,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
 
 import { CoffeePicker } from '@/components/coffee-picker';
+import { DoseChips } from '@/components/dose-chips';
 import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { type Coffee } from '@/lib/coffees';
 import { createListing } from '@/lib/listings';
 import { createReview } from '@/lib/reviews';
+
+function StepLabel({
+  step,
+  title,
+  colors,
+}: {
+  step: string;
+  title: string;
+  colors: (typeof Colors)['light' | 'dark'];
+}) {
+  return (
+    <View style={styles.stepRow}>
+      <Text style={[styles.stepNumber, { color: colors.tint }]}>{step}</Text>
+      <Text style={[styles.stepTitle, { color: colors.accent }]}>{title}</Text>
+      <View style={[styles.stepRule, { backgroundColor: colors.backgroundSelected }]} />
+    </View>
+  );
+}
 
 export default function ShareDoseScreen() {
   const { session } = useAuth();
@@ -27,21 +48,16 @@ export default function ShareDoseScreen() {
   const { width } = useWindowDimensions();
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
-  const [coffeeId, setCoffeeId] = useState<string | null>(null);
+  const [coffee, setCoffee] = useState<Coffee | null>(null);
+  const [dose, setDose] = useState<number | null>(18);
   const roastDate = useRef('');
-  const doseGrams = useRef('18');
   const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (busy || !session) return;
-    if (!coffeeId) {
-      setError('Pick a coffee (or add one) first.');
-      return;
-    }
-    const dose = Number.parseInt(doseGrams.current, 10);
-    if (!Number.isFinite(dose) || dose < 5 || dose > 100) {
+    if (busy || !session || !coffee) return;
+    if (dose == null || dose < 5 || dose > 100) {
       setError('Dose should be between 5g and 100g.');
       return;
     }
@@ -54,7 +70,7 @@ export default function ShareDoseScreen() {
     setError(null);
     try {
       const message = await createListing(session.user.id, {
-        coffee_id: coffeeId,
+        coffee_id: coffee.id,
         roast_date: date || null,
         dose_grams: dose,
       });
@@ -65,7 +81,7 @@ export default function ShareDoseScreen() {
         if (body) {
           // The listing is up either way — a failed note shouldn't block it.
           await createReview({
-            coffee_id: coffeeId,
+            coffee_id: coffee.id,
             author_id: session.user.id,
             context: 'listing',
             body,
@@ -84,7 +100,7 @@ export default function ShareDoseScreen() {
     <ScreenShell
       eyebrow="SHARE A DOSE"
       title="Put a coffee up"
-      subtitle="Pick from your saved coffees, or log a new bag."
+      subtitle="What are you brewing? Someone out there wants a taste."
       edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
@@ -93,53 +109,53 @@ export default function ShareDoseScreen() {
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
-          <Text style={[styles.sectionLabel, { color: colors.accent }]}>THE COFFEE</Text>
-          <CoffeePicker selectedId={coffeeId} onSelect={(c) => setCoffeeId(c.id)} />
+          <StepLabel step="01" title="THE COFFEE" colors={colors} />
+          <CoffeePicker selected={coffee} onSelect={setCoffee} />
 
-          <Text style={[styles.sectionLabel, { color: colors.accent }]}>THE SPECS</Text>
-          <Field label="ROAST DATE (OPTIONAL, YYYY-MM-DD)" colors={colors}>
-            <TextInput
-              placeholder="2026-07-28"
-              keyboardType="numbers-and-punctuation"
-              autoCorrect={false}
-              onChangeText={(t) => {
-                roastDate.current = t;
-              }}
-            />
-          </Field>
-          <Field label="DOSE SIZE (GRAMS)" colors={colors}>
-            <TextInput
-              placeholder="18"
-              defaultValue="18"
-              keyboardType="number-pad"
-              onChangeText={(t) => {
-                doseGrams.current = t;
-              }}
-            />
-          </Field>
-          <Field label="YOUR NOTE ON THIS COFFEE (OPTIONAL, PUBLIC)" colors={colors}>
-            <TextInput
-              placeholder="How it brews for you — recipes, impressions…"
-              multiline
-              onChangeText={(t) => {
-                note.current = t;
-              }}
-            />
-          </Field>
+          {coffee != null && (
+            <>
+              <StepLabel step="02" title="THE BAG" colors={colors} />
+              <Text style={[styles.hint, { color: colors.textSecondary }]}>
+                How big a dose are you sharing?
+              </Text>
+              <DoseChips value={dose} onChange={setDose} />
 
-          {error != null && (
-            <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
+              <Field label="ROASTED ON (OPTIONAL, YYYY-MM-DD)" colors={colors}>
+                <TextInput
+                  placeholder="2026-07-28"
+                  keyboardType="numbers-and-punctuation"
+                  autoCorrect={false}
+                  onChangeText={(t) => {
+                    roastDate.current = t;
+                  }}
+                />
+              </Field>
+
+              <Field label="A WORD FROM YOU (OPTIONAL, PUBLIC)" colors={colors}>
+                <TextInput
+                  placeholder="How it brews for you — recipe, impressions…"
+                  multiline
+                  onChangeText={(t) => {
+                    note.current = t;
+                  }}
+                />
+              </Field>
+
+              {error != null && (
+                <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
+              )}
+
+              <Host matchContents seedColor={colors.tint} style={styles.actions}>
+                <Button
+                  variant="filled"
+                  label={busy ? 'Listing…' : `Share ${dose ?? '—'}g of ${coffee.name}`}
+                  disabled={busy || dose == null}
+                  style={{ width: buttonWidth, height: 50 }}
+                  onPress={submit}
+                />
+              </Host>
+            </>
           )}
-
-          <Host matchContents seedColor={colors.tint} style={styles.actions}>
-            <Button
-              variant="filled"
-              label={busy ? 'Listing…' : 'List this dose'}
-              disabled={busy}
-              style={{ width: buttonWidth, height: 50 }}
-              onPress={submit}
-            />
-          </Host>
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenShell>
@@ -154,11 +170,29 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingBottom: Spacing.five,
   },
-  sectionLabel: {
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+  },
+  stepNumber: {
+    fontFamily: Fonts.mono,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepTitle: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 3,
-    marginTop: Spacing.two,
+  },
+  stepRule: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth * 2,
+  },
+  hint: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   message: {
     fontSize: 15,
