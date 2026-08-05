@@ -1,7 +1,10 @@
 import { Host } from '@expo/ui';
-import { StyleSheet, Text, View } from 'react-native';
+import { cloneElement, isValidElement, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Colors, Spacing } from '@/constants/theme';
+
+type Focusable = { focus?: () => void | Promise<void> };
 
 type FieldProps = {
   label: string;
@@ -12,9 +15,16 @@ type FieldProps = {
 };
 
 export function Field({ label, colors, error, children }: FieldProps) {
+  const inputRef = useRef<Focusable | null>(null);
+  // Attach a ref to the (single) input child so tapping anywhere on the
+  // card — label, padding, far right — focuses it.
+  const child = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<{ ref?: unknown }>, { ref: inputRef })
+    : children;
   return (
     <View style={styles.container}>
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus?.()}
         style={[
           styles.field,
           { backgroundColor: colors.backgroundElement },
@@ -27,8 +37,8 @@ export function Field({ label, colors, error, children }: FieldProps) {
           ]}>
           {label}
         </Text>
-        <Host matchContents>{children}</Host>
-      </View>
+        <Host matchContents>{child}</Host>
+      </Pressable>
       {error != null && (
         <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
       )}

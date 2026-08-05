@@ -1,5 +1,5 @@
-import { Host, TextInput } from '@expo/ui';
-import { useState } from 'react';
+import { Host, TextInput, type TextInputRef } from '@expo/ui';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -19,6 +19,7 @@ export function CityPicker({ value, onChange, error }: CityPickerProps) {
   const [query, setQuery] = useState('');
   // Remounts the search input when a pick clears it.
   const [pickCount, setPickCount] = useState(0);
+  const inputRef = useRef<TextInputRef>(null);
 
   if (value) {
     return (
@@ -41,7 +42,8 @@ export function CityPicker({ value, onChange, error }: CityPickerProps) {
 
   return (
     <View style={styles.container}>
-      <View
+      <Pressable
+        onPress={() => inputRef.current?.focus?.()}
         style={[
           styles.card,
           { backgroundColor: colors.backgroundElement },
@@ -58,13 +60,14 @@ export function CityPicker({ value, onChange, error }: CityPickerProps) {
           <Host matchContents>
             <TextInput
               key={pickCount}
+              ref={inputRef}
               placeholder="Start typing — Bengaluru, Mumbai…"
               autoCorrect={false}
               onChangeText={setQuery}
             />
           </Host>
         </View>
-      </View>
+      </Pressable>
       {matches.length > 0 && (
         <View style={styles.chips}>
           {matches.map((c) => (

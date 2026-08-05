@@ -1,5 +1,5 @@
-import { Host, TextInput } from '@expo/ui';
-import { useState } from 'react';
+import { Host, TextInput, type TextInputRef } from '@expo/ui';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -16,6 +16,7 @@ export function DoseChips({ value, onChange }: DoseChipsProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [custom, setCustom] = useState(value != null && !PRESETS.includes(value));
+  const inputRef = useRef<TextInputRef>(null);
 
   return (
     <View style={styles.container}>
@@ -64,9 +65,12 @@ export function DoseChips({ value, onChange }: DoseChipsProps) {
         </Pressable>
       </View>
       {custom && (
-        <View style={[styles.customBox, { backgroundColor: colors.backgroundElement }]}>
+        <Pressable
+          onPress={() => inputRef.current?.focus?.()}
+          style={[styles.customBox, { backgroundColor: colors.backgroundElement }]}>
           <Host matchContents>
             <TextInput
+              ref={inputRef}
               placeholder="Grams, 5–100"
               keyboardType="number-pad"
               onChangeText={(t) => {
@@ -75,7 +79,7 @@ export function DoseChips({ value, onChange }: DoseChipsProps) {
               }}
             />
           </Host>
-        </View>
+        </Pressable>
       )}
     </View>
   );

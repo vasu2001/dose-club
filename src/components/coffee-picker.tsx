@@ -1,4 +1,4 @@
-import { Button, Host, TextInput } from '@expo/ui';
+import { Button, Host, TextInput, type TextInputRef } from '@expo/ui';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -96,6 +96,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
   const [roasterSuggestions, setRoasterSuggestions] = useState<Roaster[]>([]);
   const [roasterPickCount, setRoasterPickCount] = useState(0);
   const [roastLevel, setRoastLevel] = useState<RoastLevel | null>(null);
+  const searchRef = useRef<TextInputRef>(null);
   const roaster = useRef('');
   const name = useRef('');
   const origin = useRef('');
@@ -332,7 +333,8 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
 
   return (
     <View style={styles.container}>
-      <View
+      <Pressable
+        onPress={() => searchRef.current?.focus?.()}
         style={[
           styles.searchBox,
           { backgroundColor: colors.backgroundElement },
@@ -341,6 +343,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
         <View style={styles.searchInput}>
           <Host matchContents>
             <TextInput
+              ref={searchRef}
               placeholder="Search coffee or roaster…"
               autoCorrect={false}
               onChangeText={setQuery}
@@ -348,7 +351,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
           </Host>
         </View>
         {searching && <ActivityIndicator size="small" color={colors.tint} />}
-      </View>
+      </Pressable>
 
       {rows.length > 0 && (
         <View style={[styles.resultsCard, { backgroundColor: colors.backgroundElement }]}>
