@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,7 +37,14 @@ function buildTimeline(p: Proposal, proposerName: string, ownerName: string): Ti
     { label: `${proposerName} proposed the trade`, at: p.created_at },
   ];
   if (p.accepted_at) events.push({ label: `${ownerName} accepted`, at: p.accepted_at });
-  if (p.declined_at) events.push({ label: `${ownerName} declined`, at: p.declined_at });
+  if (p.declined_at)
+    events.push({
+      label:
+        p.status === 'not_accepted'
+          ? `${ownerName} went with another offer`
+          : `${ownerName} declined`,
+      at: p.declined_at,
+    });
   if (p.withdrawn_at) events.push({ label: `${proposerName} withdrew`, at: p.withdrawn_at });
   if (p.proposer_confirmed_at)
     events.push({ label: `${proposerName} confirmed the exchange`, at: p.proposer_confirmed_at });
@@ -60,12 +68,15 @@ function CoffeeSide({
   coffeeName,
   meta,
   dose,
+  shelfListingId,
   colors,
 }: {
   heading: string;
   coffeeName: string;
   meta: string;
   dose: string;
+  /** Set when this coffee is backed by a listing — links the two trades' shelves. */
+  shelfListingId?: string | null;
   colors: (typeof Colors)['light' | 'dark'];
 }) {
   return (
@@ -74,6 +85,11 @@ function CoffeeSide({
       <Text style={[styles.sideName, { color: colors.text }]}>{coffeeName}</Text>
       <Text style={[styles.sideMeta, { color: colors.textSecondary }]}>{meta}</Text>
       <Text style={[styles.sideDose, { color: colors.tint }]}>{dose}</Text>
+      {shelfListingId != null && (
+        <Link href={{ pathname: '/listing/[id]', params: { id: shelfListingId } }}>
+          <Text style={[styles.shelfLink, { color: colors.tint }]}>View the listing →</Text>
+        </Link>
+      )}
     </View>
   );
 }
@@ -87,6 +103,7 @@ export default function TradeDetailScreen() {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewCoffeeId, setReviewCoffeeId] = useState<string | null>(null);
   const reviewBody = useRef('');
 
   const { data: proposal = null, isLoading } = useQuery({
@@ -147,9 +164,16 @@ export default function TradeDetailScreen() {
   const myConfirmation = iAmProposer
     ? proposal.proposer_confirmed_at
     : proposal.owner_confirmed_at;
-  const receivedCoffee = iAmProposer
-    ? proposal.listing?.coffee
-    : proposal.offered_coffee;
+  const items = proposal.items ?? [];
+  // What landed in *my* jar: the listing's coffee if I proposed, the offered
+  // bundle if I own the listing.
+  const receivedCoffees = iAmProposer
+    ? proposal.listing?.coffee != null
+      ? [proposal.listing.coffee]
+      : []
+    : items.map((i) => i.coffee);
+  const receivedCoffee =
+    receivedCoffees.find((c) => c.id === reviewCoffeeId) ?? receivedCoffees[0] ?? null;
 
   const submitReview = async () => {
     if (busy || !session || !receivedCoffee) return;
@@ -183,18 +207,26 @@ export default function TradeDetailScreen() {
   return (
     <ScreenShell
       eyebrow={`TRADE · ${proposal.status.toUpperCase()}`}
-      title={`${proposal.offered_coffee?.name ?? 'A coffee'} ⇄ ${proposal.listing?.coffee.name ?? 'a coffee'}`}
+      title={`${items[0]?.coffee.name ?? 'A coffee'}${items.length > 1 ? ` +${items.length - 1}` : ''} ⇄ ${proposal.listing?.coffee.name ?? 'a coffee'}`}
       edges={['bottom']}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <CoffeeSide
-          heading={`${proposerName === 'You' ? 'YOU GIVE' : `${proposerName} GIVES`}`}
-          coffeeName={proposal.offered_coffee?.name ?? '—'}
-          meta={[proposal.offered_coffee?.roaster.name, proposal.offered_coffee?.origin]
-            .filter(Boolean)
-            .join(' · ')}
-          dose={`${proposal.offered_dose_grams}g dose`}
-          colors={colors}
-        />
+        {items.map((item, i) => (
+          <CoffeeSide
+            key={item.id}
+            heading={
+              i === 0
+                ? proposerName === 'You'
+                  ? 'YOU GIVE'
+                  : `${proposerName} GIVES`
+                : 'PLUS'
+            }
+            coffeeName={item.coffee.name}
+            meta={[item.coffee.roaster.name, item.coffee.origin].filter(Boolean).join(' · ')}
+            dose={`${item.dose_grams}g dose`}
+            shelfListingId={item.listing_id}
+            colors={colors}
+          />
+        ))}
         <CoffeeSide
           heading={`${ownerName === 'You' ? 'YOU GIVE' : `${ownerName} GIVES`}`}
           coffeeName={proposal.listing?.coffee.name ?? '—'}
@@ -313,6 +345,35 @@ export default function TradeDetailScreen() {
               <Text style={[styles.sectionLabel, { color: colors.accent }]}>
                 HOW WAS {receivedCoffee.name.toUpperCase()}?
               </Text>
+              {receivedCoffees.length > 1 && (
+                <View style={styles.reviewChips}>
+                  {receivedCoffees.map((c) => {
+                    const selected = c.id === receivedCoffee.id;
+                    return (
+                      <Pressable
+                        key={c.id}
+                        onPress={() => setReviewCoffeeId(c.id)}
+                        style={[
+                          styles.reviewChip,
+                          {
+                            backgroundColor: selected
+                              ? colors.backgroundSelected
+                              : colors.backgroundElement,
+                            borderColor: selected ? colors.tint : 'transparent',
+                          },
+                        ]}>
+                        <Text
+                          style={[
+                            styles.reviewChipText,
+                            { color: selected ? colors.tint : colors.text },
+                          ]}>
+                          {c.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
               <Field label="YOUR REVIEW" colors={colors} inputHeight={72}>
                 <TextInput
                   placeholder="Brewed it yet? Tell the club how it cups."
@@ -369,6 +430,26 @@ const styles = StyleSheet.create({
   sideDose: {
     fontFamily: Fonts.mono,
     fontSize: 13,
+  },
+  shelfLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: Spacing.one,
+  },
+  reviewChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one + 2,
+  },
+  reviewChip: {
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one + 2,
+  },
+  reviewChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   messageText: {
     fontSize: 15,

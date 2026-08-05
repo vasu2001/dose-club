@@ -79,13 +79,26 @@ export async function closeListing(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export type ProposalStatus = 'pending' | 'accepted' | 'declined' | 'withdrawn' | 'completed';
+export type ProposalStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'withdrawn'
+  | 'completed'
+  | 'not_accepted';
+
+/** One coffee in an offer. `listing_id` set when it came off the proposer's shelf. */
+export type ProposalItem = {
+  id: string;
+  listing_id: string | null;
+  dose_grams: number;
+  coffee: Coffee;
+};
 
 export type Proposal = {
   id: string;
   listing_id: string;
   proposer_id: string;
-  offered_dose_grams: number;
   message: string | null;
   status: ProposalStatus;
   proposer_confirmed_at: string | null;
@@ -96,15 +109,27 @@ export type Proposal = {
   completed_at: string | null;
   created_at: string;
   listing: Listing | null;
-  offered_coffee: Coffee | null;
+  items: ProposalItem[];
   proposer: ListingOwner | null;
 };
 
-const PROPOSAL_SELECT = `id, listing_id, proposer_id, offered_dose_grams, message, status,
+const PROPOSAL_SELECT = `id, listing_id, proposer_id, message, status,
   proposer_confirmed_at, owner_confirmed_at, accepted_at, declined_at, withdrawn_at, completed_at, created_at,
   listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
-  offered_coffee:coffees!proposals_offered_coffee_id_fkey(${COFFEE_SELECT}),
+  items:proposal_items!proposal_items_proposal_id_fkey(id, listing_id, dose_grams,
+    coffee:coffees!proposal_items_coffee_id_fkey(${COFFEE_SELECT})),
   proposer:profiles!proposals_proposer_id_fkey(username, display_name, city)`;
+
+export function offerTotalGrams(items: ProposalItem[]): number {
+  return items.reduce((sum, item) => sum + item.dose_grams, 0);
+}
+
+/** "18g of Baarbara Estate" or "2 coffees (33g)". */
+export function offerSummary(items: ProposalItem[]): string {
+  if (items.length === 0) return 'a coffee';
+  if (items.length === 1) return `${items[0].dose_grams}g of ${items[0].coffee.name}`;
+  return `${items.length} coffees (${offerTotalGrams(items)}g)`;
+}
 
 /** All proposals the current user is involved in (RLS scopes the rows). */
 export async function fetchProposals(): Promise<Proposal[]> {
@@ -126,18 +151,27 @@ export async function fetchProposal(id: string): Promise<Proposal | null> {
   return data as unknown as Proposal | null;
 }
 
+export type OfferItemInput = {
+  coffee_id: string;
+  /** The proposer's own listing this item is offered from, if any. */
+  listing_id: string | null;
+  dose_grams: number;
+};
+
 /** Returns an error message, or null on success. */
 export async function createProposal(input: {
   listing_id: string;
-  proposer_id: string;
-  offered_coffee_id: string;
-  offered_dose_grams: number;
   message: string | null;
+  items: OfferItemInput[];
 }): Promise<string | null> {
-  const { error } = await supabase.from('proposals').insert(input);
+  const { error } = await supabase.rpc('create_proposal', {
+    p_listing_id: input.listing_id,
+    p_message: input.message,
+    p_items: input.items,
+  });
   if (!error) return null;
-  if (error.code === '42501') {
-    return 'That trade is not allowed — the listing may no longer be active.';
+  if (error.code === '23505') {
+    return 'You already have a pending proposal on this listing.';
   }
   return error.message;
 }

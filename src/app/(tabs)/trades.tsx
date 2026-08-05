@@ -21,6 +21,7 @@ import {
   confirmTrade,
   declineProposal,
   fetchProposals,
+  offerSummary,
   withdrawProposal,
   type Proposal,
   type ProposalStatus,
@@ -34,6 +35,7 @@ const STATUS_LABEL: Record<ProposalStatus, string> = {
   declined: 'DECLINED',
   withdrawn: 'WITHDRAWN',
   completed: 'COMPLETED ✓',
+  not_accepted: 'NOT ACCEPTED',
 };
 
 const ACTIVE_STATUSES: ProposalStatus[] = ['pending', 'accepted'];
@@ -95,12 +97,12 @@ export default function TradesScreen() {
 
   const renderProposal = (p: Proposal, direction: 'incoming' | 'outgoing') => {
     const busy = busyId === p.id;
-    const offered = p.offered_coffee?.name ?? 'a coffee';
+    const offered = offerSummary(p.items ?? []);
     const target = p.listing?.coffee.name ?? 'a listing';
     const title =
       direction === 'incoming'
-        ? `@${p.proposer?.username ?? 'someone'} offers ${p.offered_dose_grams}g of ${offered}`
-        : `You offered ${p.offered_dose_grams}g of ${offered}`;
+        ? `@${p.proposer?.username ?? 'someone'} offers ${offered}`
+        : `You offered ${offered}`;
     const subtitle =
       direction === 'incoming'
         ? `for your ${target}`
