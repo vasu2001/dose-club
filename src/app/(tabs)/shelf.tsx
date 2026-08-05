@@ -13,7 +13,7 @@ import {
 
 import { ListingCard } from '@/components/listing-card';
 import { ScreenShell } from '@/components/screen-shell';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { fetchMyListings, type Listing } from '@/lib/listings';
 
@@ -50,10 +50,11 @@ export default function ShelfScreen() {
       eyebrow="YOUR SHELF"
       title={profile?.display_name ? `${profile.display_name}'s doses` : 'Your doses'}
       subtitle="Coffees you've put up for trade."
-      insetForTabs>
+      edges={['top']}>
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
@@ -100,7 +101,8 @@ export default function ShelfScreen() {
 const styles = StyleSheet.create({
   list: {
     gap: Spacing.two,
-    paddingBottom: Spacing.four,
+    // Scroll under the floating tab bar; keep the last card reachable.
+    paddingBottom: BottomTabInset + Spacing.five,
   },
   empty: {
     paddingVertical: Spacing.four,

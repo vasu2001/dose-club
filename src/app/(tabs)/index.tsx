@@ -293,6 +293,7 @@ export default function BrowseScreen() {
       <FlatList
         data={visible}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
