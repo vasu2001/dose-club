@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { ListingCard } from '@/components/listing-card';
+import { ListingListSkeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { BottomTabInset, Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
@@ -320,7 +321,9 @@ export default function BrowseScreen() {
                   : 'No doses up for trade right now. Share one of yours to get things moving.'}
               </Text>
             </View>
-          ) : null
+          ) : (
+            <ListingListSkeleton count={4} />
+          )
         }
       />
 

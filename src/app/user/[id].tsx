@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { ScreenShell } from '@/components/screen-shell';
+import { ProfileSkeleton, Skeleton } from '@/components/skeleton';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import {
   fetchProfile,
@@ -16,13 +17,17 @@ function StatTile({
   label,
   colors,
 }: {
-  value: string;
+  value: string | null;
   label: string;
   colors: (typeof Colors)['light' | 'dark'];
 }) {
   return (
     <View style={[styles.stat, { backgroundColor: colors.backgroundElement }]}>
-      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      {value == null ? (
+        <Skeleton width={48} height={36} radius={10} style={{ marginVertical: 3 }} />
+      ) : (
+        <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      )}
       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
@@ -54,11 +59,13 @@ export default function PublicProfileScreen() {
 
   if (!profile) {
     return (
-      <ScreenShell title={loaded ? 'Not found' : 'Loading…'} edges={['bottom']}>
-        {loaded && (
+      <ScreenShell title={loaded ? 'Not found' : ' '} edges={['bottom']}>
+        {loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             This member doesn't exist.
           </Text>
+        ) : (
+          <ProfileSkeleton />
         )}
       </ScreenShell>
     );
@@ -83,12 +90,12 @@ export default function PublicProfileScreen() {
       edges={['bottom']}>
       <View style={styles.stats}>
         <StatTile
-          value={String(stats?.completed_trades ?? '—')}
+          value={stats ? String(stats.completed_trades) : null}
           label="COMPLETED TRADES"
           colors={colors}
         />
         <StatTile
-          value={String(stats?.active_listings ?? '—')}
+          value={stats ? String(stats.active_listings) : null}
           label="DOSES ON SHELF"
           colors={colors}
         />

@@ -14,6 +14,7 @@ import { CoffeePicker } from '@/components/coffee-picker';
 import { DoseChips } from '@/components/dose-chips';
 import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
+import { ListingCardSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { type Coffee } from '@/lib/coffees';
@@ -109,11 +110,13 @@ export default function ProposeScreen() {
 
   if (!listing || listing.status !== 'active') {
     return (
-      <ScreenShell title={loaded ? 'Unavailable' : 'Loading…'} edges={['bottom']}>
-        {loaded && (
+      <ScreenShell title={loaded ? 'Unavailable' : ' '} edges={['bottom']}>
+        {loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             This listing is no longer available for proposals.
           </Text>
+        ) : (
+          <ListingCardSkeleton />
         )}
       </ScreenShell>
     );

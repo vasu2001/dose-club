@@ -13,6 +13,7 @@ import {
 
 import { RoastDots } from '@/components/roast-slider';
 import { ScreenShell } from '@/components/screen-shell';
+import { ListingDetailSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS } from '@/lib/coffees';
@@ -86,11 +87,13 @@ export default function ListingDetailScreen() {
 
   if (!listing) {
     return (
-      <ScreenShell title={loaded ? 'Not found' : 'Loading…'} edges={['bottom']}>
-        {loaded && (
+      <ScreenShell title={loaded ? 'Not found' : ' '} edges={['bottom']}>
+        {loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             This listing doesn't exist anymore.
           </Text>
+        ) : (
+          <ListingDetailSkeleton />
         )}
       </ScreenShell>
     );

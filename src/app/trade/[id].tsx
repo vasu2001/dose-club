@@ -11,6 +11,7 @@ import {
 
 import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
+import { TradeDetailSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
@@ -125,11 +126,13 @@ export default function TradeDetailScreen() {
 
   if (!proposal) {
     return (
-      <ScreenShell title={loaded ? 'Not found' : 'Loading…'} edges={['bottom']}>
-        {loaded && (
+      <ScreenShell title={loaded ? 'Not found' : ' '} edges={['bottom']}>
+        {loaded ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             This trade doesn't exist or you're not part of it.
           </Text>
+        ) : (
+          <TradeDetailSkeleton />
         )}
       </ScreenShell>
     );

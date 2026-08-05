@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { ScreenShell } from '@/components/screen-shell';
+import { TradeCardSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
@@ -251,7 +252,12 @@ export default function TradesScreen() {
         )}
 
         <Text style={[styles.sectionLabel, { color: colors.accent }]}>INCOMING</Text>
-        {incoming.length === 0 && loaded ? (
+        {!loaded ? (
+          <>
+            <TradeCardSkeleton />
+            <TradeCardSkeleton />
+          </>
+        ) : incoming.length === 0 ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             {segment === 'active'
               ? 'No active proposals on your doses.'
@@ -264,7 +270,9 @@ export default function TradesScreen() {
         <Text style={[styles.sectionLabel, { color: colors.accent, marginTop: Spacing.three }]}>
           OUTGOING
         </Text>
-        {outgoing.length === 0 && loaded ? (
+        {!loaded ? (
+          <TradeCardSkeleton />
+        ) : outgoing.length === 0 ? (
           <Text style={[styles.muted, { color: colors.textSecondary }]}>
             {segment === 'active'
               ? "No active offers. Find something on Browse."
