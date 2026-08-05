@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   list: {
     gap: Spacing.two,
     // Scroll under the floating tab bar; keep the last card reachable.
-    paddingBottom: BottomTabInset + Spacing.five,
+    paddingBottom: BottomTabInset + Spacing.six,
   },
   empty: {
     paddingVertical: Spacing.four,
