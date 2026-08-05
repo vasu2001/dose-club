@@ -2,15 +2,13 @@ import { Button, Host, TextInput } from '@expo/ui';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { CoffeePicker } from '@/components/coffee-picker';
 import { DoseChips } from '@/components/dose-chips';
@@ -127,16 +125,13 @@ export default function ProposeScreen() {
       title={`For ${listing.coffee.name}`}
       subtitle={`${listing.dose_grams}g dose from @${listing.owner?.username ?? 'someone'}`}
       edges={['bottom']}>
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
+        showsVerticalScrollIndicator={false}
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? undefined : 'height'}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets>
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={24}>
           <StepLabel step="01" title="YOUR OFFER" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 
@@ -195,8 +190,7 @@ export default function ProposeScreen() {
               </Host>
             </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </ScreenShell>
   );
 }

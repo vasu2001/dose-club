@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { Colors } from '@/constants/theme';
@@ -56,10 +57,12 @@ function RootNavigator() {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
-    </ThemeProvider>
+    <KeyboardProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </ThemeProvider>
+    </KeyboardProvider>
   );
 }

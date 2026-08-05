@@ -3,17 +3,15 @@ import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { CoffeePicker } from '@/components/coffee-picker';
 import { DoseChips } from '@/components/dose-chips';
@@ -110,16 +108,13 @@ export default function ShareDoseScreen() {
       title="Put a coffee up"
       subtitle="What are you brewing? Someone out there wants a taste."
       edges={['bottom']}>
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
+        showsVerticalScrollIndicator={false}
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? undefined : 'height'}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          automaticallyAdjustKeyboardInsets>
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={24}>
           <StepLabel step="01" title="THE COFFEE" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 
@@ -220,8 +215,7 @@ export default function ShareDoseScreen() {
               </Host>
             </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </ScreenShell>
   );
 }

@@ -1,14 +1,13 @@
 import { Button, Host, TextInput } from '@expo/ui';
 import { useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
   View,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -64,9 +63,7 @@ export function AuthForm({
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
           <View style={styles.content}>
             <Text style={[styles.heading, { color: colors.text }]}>{heading}</Text>
             <Text style={[styles.subheading, { color: colors.textSecondary }]}>

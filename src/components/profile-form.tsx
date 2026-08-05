@@ -3,14 +3,12 @@ import { useRef, useState } from 'react';
 
 import { isKnownCity } from '@/constants/cities';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   useColorScheme,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { CityPicker } from '@/components/city-picker';
 import { Field } from '@/components/form-field';
@@ -111,16 +109,13 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
   };
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAwareScrollView
+      showsVerticalScrollIndicator={false}
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? undefined : 'height'}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={styles.flex}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        automaticallyAdjustKeyboardInsets>
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      bottomOffset={24}>
         <Field label="DISPLAY NAME" colors={colors} error={fieldErrors.display_name}>
           <TextInput
             placeholder="June Kim"
@@ -182,8 +177,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             onPress={submit}
           />
         </Host>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
