@@ -105,7 +105,11 @@ export default function TradeDetailScreen() {
       await action(proposal.id);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      const message =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Something went wrong.';
+      setError(message);
     } finally {
       setBusy(false);
     }
