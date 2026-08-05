@@ -20,18 +20,20 @@ import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS, type RoastLevel } from '@/lib/coffees';
 import { daysOffRoast, fetchActiveListings, type Listing } from '@/lib/listings';
 
-type QuickTab = 'all' | 'fresh' | 'my-city';
-
 const FRESH_DAYS = 14;
 
 type Filters = {
-  roast: RoastLevel | null;
-  process: string | null;
-  city: string | null;
+  roasts: RoastLevel[];
+  processes: string[];
+  cities: string[];
   maxDays: number | null;
 };
 
-const NO_FILTERS: Filters = { roast: null, process: null, city: null, maxDays: null };
+const NO_FILTERS: Filters = { roasts: [], processes: [], cities: [], maxDays: null };
+
+function toggle<T>(list: T[], value: T): T[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
 
 function FilterChip({
   label,
@@ -88,7 +90,6 @@ export default function BrowseScreen() {
   const [loaded, setLoaded] = useState(false);
 
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<QuickTab>('all');
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
   // Draft edited inside the sheet, applied on "Show doses".
@@ -145,35 +146,50 @@ export default function BrowseScreen() {
       if (!hay.includes(q)) return false;
     }
     const days = daysOffRoast(l);
-    if (tab === 'fresh' && (days == null || days > FRESH_DAYS)) return false;
-    if (tab === 'my-city' && (!profile?.city || l.owner?.city !== profile.city)) return false;
-    if (filters.roast && roastIndex(l.coffee.roast_level) !== ROAST_LEVELS.indexOf(filters.roast))
+    if (filters.roasts.length > 0) {
+      const idx = roastIndex(l.coffee.roast_level);
+      if (idx == null || !filters.roasts.includes(ROAST_LEVELS[idx])) return false;
+    }
+    if (
+      filters.processes.length > 0 &&
+      !filters.processes.includes(l.coffee.process?.trim().toLowerCase() ?? '')
+    )
       return false;
-    if (filters.process && l.coffee.process?.trim().toLowerCase() !== filters.process)
+    if (filters.cities.length > 0 && !filters.cities.includes(l.owner?.city ?? ''))
       return false;
-    if (filters.city && l.owner?.city !== filters.city) return false;
     if (filters.maxDays != null && (days == null || days > filters.maxDays)) return false;
     return true;
   });
 
-  const activeChips: { key: keyof Filters; label: string }[] = [];
-  if (filters.roast) activeChips.push({ key: 'roast', label: ROAST_LABEL[filters.roast] });
-  if (filters.process)
-    activeChips.push({
-      key: 'process',
-      label: filters.process.charAt(0).toUpperCase() + filters.process.slice(1),
-    });
-  if (filters.city) activeChips.push({ key: 'city', label: `📍 ${filters.city}` });
-  if (filters.maxDays != null)
-    activeChips.push({ key: 'maxDays', label: `≤ ${filters.maxDays}d off roast` });
+  const activeChips: { key: string; label: string; remove: () => void }[] = [
+    ...filters.roasts.map((r) => ({
+      key: `roast-${r}`,
+      label: ROAST_LABEL[r],
+      remove: () => setFilters((f) => ({ ...f, roasts: f.roasts.filter((x) => x !== r) })),
+    })),
+    ...filters.processes.map((p) => ({
+      key: `process-${p}`,
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      remove: () =>
+        setFilters((f) => ({ ...f, processes: f.processes.filter((x) => x !== p) })),
+    })),
+    ...filters.cities.map((c) => ({
+      key: `city-${c}`,
+      label: `📍 ${c}`,
+      remove: () => setFilters((f) => ({ ...f, cities: f.cities.filter((x) => x !== c) })),
+    })),
+    ...(filters.maxDays != null
+      ? [
+          {
+            key: 'maxDays',
+            label: `≤ ${filters.maxDays}d off roast`,
+            remove: () => setFilters((f) => ({ ...f, maxDays: null })),
+          },
+        ]
+      : []),
+  ];
 
   const filterCount = activeChips.length;
-
-  const TABS: { key: QuickTab; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'fresh', label: 'Fresh' },
-    ...(profile?.city ? [{ key: 'my-city' as const, label: profile.city }] : []),
-  ];
 
   return (
     <ScreenShell
@@ -198,29 +214,6 @@ export default function BrowseScreen() {
       </Pressable>
 
       <View style={styles.controls}>
-        <View style={[styles.tabs, { backgroundColor: colors.backgroundElement }]}>
-          {TABS.map(({ key, label }) => {
-            const selected = tab === key;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => setTab(key)}
-                style={[
-                  styles.tab,
-                  selected && { backgroundColor: colors.backgroundSelected },
-                ]}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    { color: selected ? colors.text : colors.textSecondary },
-                  ]}
-                  numberOfLines={1}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
         <Pressable
           onPress={() => {
             setDraft(filters);
@@ -246,24 +239,56 @@ export default function BrowseScreen() {
             </Text>
           )}
         </Pressable>
-      </View>
 
-      {activeChips.length > 0 && (
-        <View style={styles.activeRow}>
-          {activeChips.map(({ key, label }) => (
-            <Pressable
-              key={key}
-              onPress={() => setFilters((f) => ({ ...f, [key]: null }))}
-              style={[styles.activeChip, { backgroundColor: colors.backgroundSelected }]}>
-              <Text style={[styles.activeChipText, { color: colors.text }]}>{label}</Text>
-              <Text style={[styles.activeChipX, { color: colors.tint }]}>✕</Text>
-            </Pressable>
-          ))}
-          <Pressable onPress={() => setFilters(NO_FILTERS)} hitSlop={8}>
-            <Text style={[styles.clearAll, { color: colors.tint }]}>Clear all</Text>
-          </Pressable>
-        </View>
-      )}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.controlsRow}>
+          {filterCount === 0 ? (
+            <>
+              <Pressable
+                onPress={() => setFilters({ ...NO_FILTERS, maxDays: FRESH_DAYS })}
+                style={[styles.pill, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={[styles.pillText, { color: colors.text }]}>Fresh</Text>
+              </Pressable>
+              {profile?.city != null && (
+                <Pressable
+                  onPress={() =>
+                    setFilters({ ...NO_FILTERS, cities: [profile.city as string] })
+                  }
+                  style={[styles.pill, { backgroundColor: colors.backgroundElement }]}>
+                  <Text style={[styles.pillText, { color: colors.text }]}>
+                    📍 {profile.city}
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => setFilters({ ...NO_FILTERS, roasts: ['ultralight', 'light'] })}
+                style={[styles.pill, { backgroundColor: colors.backgroundElement }]}>
+                <Text style={[styles.pillText, { color: colors.text }]}>Light roasts</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {activeChips.map(({ key, label, remove }) => (
+                <Pressable
+                  key={key}
+                  onPress={remove}
+                  style={[styles.pill, styles.activePill, { borderColor: colors.tint }]}>
+                  <Text style={[styles.pillText, { color: colors.text }]}>{label}</Text>
+                  <Text style={[styles.activeChipX, { color: colors.tint }]}>✕</Text>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setFilters(NO_FILTERS)}
+                hitSlop={8}
+                style={styles.clearAllWrap}>
+                <Text style={[styles.clearAll, { color: colors.tint }]}>Clear all</Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={visible}
@@ -289,7 +314,7 @@ export default function BrowseScreen() {
           loaded ? (
             <View style={styles.empty}>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {q || filterCount > 0 || tab !== 'all'
+                {q || filterCount > 0
                   ? 'Nothing matches. Loosen the filters a little.'
                   : 'No doses up for trade right now. Share one of yours to get things moving.'}
               </Text>
@@ -314,10 +339,8 @@ export default function BrowseScreen() {
               <FilterChip
                 key={r}
                 label={ROAST_LABEL[r]}
-                selected={draft.roast === r}
-                onPress={() =>
-                  setDraft((d) => ({ ...d, roast: d.roast === r ? null : r }))
-                }
+                selected={draft.roasts.includes(r)}
+                onPress={() => setDraft((d) => ({ ...d, roasts: toggle(d.roasts, r) }))}
                 colors={colors}
               />
             ))}
@@ -329,10 +352,8 @@ export default function BrowseScreen() {
                 <FilterChip
                   key={p}
                   label={p.charAt(0).toUpperCase() + p.slice(1)}
-                  selected={draft.process === p}
-                  onPress={() =>
-                    setDraft((d) => ({ ...d, process: d.process === p ? null : p }))
-                  }
+                  selected={draft.processes.includes(p)}
+                  onPress={() => setDraft((d) => ({ ...d, processes: toggle(d.processes, p) }))}
                   colors={colors}
                 />
               ))}
@@ -345,10 +366,8 @@ export default function BrowseScreen() {
                 <FilterChip
                   key={c}
                   label={c}
-                  selected={draft.city === c}
-                  onPress={() =>
-                    setDraft((d) => ({ ...d, city: d.city === c ? null : c }))
-                  }
+                  selected={draft.cities.includes(c)}
+                  onPress={() => setDraft((d) => ({ ...d, cities: toggle(d.cities, c) }))}
                   colors={colors}
                 />
               ))}
@@ -414,26 +433,33 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
     marginBottom: Spacing.two,
   },
-  tabs: {
-    flex: 1,
+  controlsRow: {
     flexDirection: 'row',
-    borderRadius: 999,
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-    paddingVertical: Spacing.one + 4,
-    paddingHorizontal: Spacing.two,
+    gap: Spacing.one + 2,
+    paddingRight: Spacing.three,
   },
-  tabText: {
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 4,
+  },
+  activePill: {
+    borderWidth: 1.5,
+  },
+  pillText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  clearAllWrap: {
+    justifyContent: 'center',
   },
   filterButton: {
     flexDirection: 'row',
@@ -442,6 +468,7 @@ const styles = StyleSheet.create({
     gap: 4,
     borderRadius: 999,
     paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 4,
   },
   filterIcon: {
     fontSize: 17,
@@ -450,25 +477,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.mono,
     fontSize: 13,
     fontWeight: '700',
-  },
-  activeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: Spacing.one + 2,
-    marginBottom: Spacing.two,
-  },
-  activeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one + 2,
-    borderRadius: 999,
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: Spacing.one + 1,
-  },
-  activeChipText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   activeChipX: {
     fontSize: 12,
