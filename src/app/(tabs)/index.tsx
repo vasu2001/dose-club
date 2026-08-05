@@ -15,7 +15,7 @@ import {
 
 import { ListingCard } from '@/components/listing-card';
 import { ScreenShell } from '@/components/screen-shell';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS, type RoastLevel } from '@/lib/coffees';
 import { daysOffRoast, fetchActiveListings, type Listing } from '@/lib/listings';
@@ -196,7 +196,7 @@ export default function BrowseScreen() {
       eyebrow="AVAILABLE DOSES"
       title="What's brewing"
       subtitle="Fresh doses other members are ready to trade."
-      insetForTabs>
+      edges={['top']}>
       <Pressable
         onPress={() => searchRef.current?.focus?.()}
         style={[styles.searchBox, { backgroundColor: colors.backgroundElement }]}>
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginBottom: Spacing.two,
+    marginBottom: Spacing.three,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -499,7 +499,8 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.two,
-    paddingBottom: Spacing.four,
+    // Scroll under the floating tab bar; keep the last card reachable.
+    paddingBottom: BottomTabInset + Spacing.five,
   },
   empty: {
     paddingVertical: Spacing.four,
