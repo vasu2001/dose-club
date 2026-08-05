@@ -14,6 +14,10 @@ create table public.proposals (
     check (status in ('pending', 'accepted', 'declined', 'withdrawn', 'completed')),
   proposer_confirmed_at timestamptz,
   owner_confirmed_at timestamptz,
+  accepted_at timestamptz,
+  declined_at timestamptz,
+  withdrawn_at timestamptz,
+  completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -63,6 +67,32 @@ create policy "proposals_update_proposer" on public.proposals
 create trigger proposals_set_updated_at
   before update on public.proposals
   for each row execute function public.set_updated_at();
+
+-- Timeline timestamps, stamped automatically on status change.
+create or replace function public.stamp_proposal_status()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status is distinct from old.status then
+    if new.status = 'accepted' then
+      new.accepted_at = coalesce(new.accepted_at, now());
+    elsif new.status = 'declined' then
+      new.declined_at = coalesce(new.declined_at, now());
+    elsif new.status = 'withdrawn' then
+      new.withdrawn_at = coalesce(new.withdrawn_at, now());
+    elsif new.status = 'completed' then
+      new.completed_at = coalesce(new.completed_at, now());
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger proposals_stamp_status
+  before update on public.proposals
+  for each row execute function public.stamp_proposal_status();
 
 -- Owner accepts a pending proposal. The listing stays active — a bag can
 -- serve several trades.
@@ -185,6 +215,32 @@ begin
     and owner_confirmed_at is not null;
 end;
 $$;
+
+-- Public profile stats. SECURITY DEFINER because proposal rows are only
+-- visible to their participants, but aggregate counts are public.
+create or replace function public.profile_stats(p_user_id uuid)
+returns table (completed_trades bigint, active_listings bigint)
+language sql
+security definer
+set search_path = ''
+as $$
+  select
+    (
+      select count(*)
+      from public.proposals p
+      join public.listings l on l.id = p.listing_id
+      where p.status = 'completed'
+        and (p.proposer_id = p_user_id or l.owner_id = p_user_id)
+    ) as completed_trades,
+    (
+      select count(*)
+      from public.listings
+      where owner_id = p_user_id and status = 'active'
+    ) as active_listings;
+$$;
+
+revoke execute on function public.profile_stats(uuid) from public, anon;
+grant execute on function public.profile_stats(uuid) to authenticated;
 
 revoke execute on function public.accept_proposal(uuid) from public, anon;
 revoke execute on function public.decline_proposal(uuid) from public, anon;

@@ -6,6 +6,7 @@ export type Profile = {
   display_name: string | null;
   city: string | null;
   bio: string | null;
+  created_at: string;
 };
 
 /** A profile counts as set up once it has a username and display name. */
@@ -16,11 +17,28 @@ export function isProfileComplete(profile: Profile | null): boolean {
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, display_name, city, bio')
+    .select('id, username, display_name, city, bio, created_at')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+export type ProfileStats = {
+  completed_trades: number;
+  active_listings: number;
+};
+
+export async function fetchProfileStats(userId: string): Promise<ProfileStats> {
+  const { data, error } = await supabase
+    .rpc('profile_stats', { p_user_id: userId })
+    .single();
+  if (error) throw error;
+  const row = data as { completed_trades: number; active_listings: number };
+  return {
+    completed_trades: Number(row.completed_trades),
+    active_listings: Number(row.active_listings),
+  };
 }
 
 export type ProfileInput = {

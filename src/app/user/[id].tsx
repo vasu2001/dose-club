@@ -1,0 +1,137 @@
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+
+import { ScreenShell } from '@/components/screen-shell';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
+import {
+  fetchProfile,
+  fetchProfileStats,
+  type Profile,
+  type ProfileStats,
+} from '@/lib/profile';
+
+function StatTile({
+  value,
+  label,
+  colors,
+}: {
+  value: string;
+  label: string;
+  colors: (typeof Colors)['light' | 'dark'];
+}) {
+  return (
+    <View style={[styles.stat, { backgroundColor: colors.backgroundElement }]}>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+export default function PublicProfileScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    Promise.all([fetchProfile(id), fetchProfileStats(id)])
+      .then(([p, s]) => {
+        if (cancelled) return;
+        setProfile(p);
+        setStats(s);
+      })
+      .finally(() => setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (!profile) {
+    return (
+      <ScreenShell title={loaded ? 'Not found' : 'Loading…'} edges={['bottom']}>
+        {loaded && (
+          <Text style={[styles.muted, { color: colors.textSecondary }]}>
+            This member doesn't exist.
+          </Text>
+        )}
+      </ScreenShell>
+    );
+  }
+
+  const memberSince = new Date(profile.created_at).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <ScreenShell
+      eyebrow="MEMBER"
+      title={profile.display_name ?? `@${profile.username ?? 'someone'}`}
+      subtitle={[
+        `@${profile.username ?? '—'}`,
+        profile.city,
+        `since ${memberSince}`,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+      edges={['bottom']}>
+      <View style={styles.stats}>
+        <StatTile
+          value={String(stats?.completed_trades ?? '—')}
+          label="COMPLETED TRADES"
+          colors={colors}
+        />
+        <StatTile
+          value={String(stats?.active_listings ?? '—')}
+          label="DOSES ON SHELF"
+          colors={colors}
+        />
+      </View>
+
+      {profile.bio != null && (
+        <Text style={[styles.bio, { color: colors.textSecondary }]}>“{profile.bio}”</Text>
+      )}
+    </ScreenShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  stats: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  stat: {
+    flex: 1,
+    borderRadius: 20,
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  statValue: {
+    fontFamily: Fonts.serif,
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  bio: {
+    fontFamily: Fonts.serif,
+    fontSize: 17,
+    lineHeight: 26,
+    fontStyle: 'italic',
+    marginTop: Spacing.three,
+  },
+  muted: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+});

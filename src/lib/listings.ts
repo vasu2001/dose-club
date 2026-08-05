@@ -89,6 +89,10 @@ export type Proposal = {
   status: ProposalStatus;
   proposer_confirmed_at: string | null;
   owner_confirmed_at: string | null;
+  accepted_at: string | null;
+  declined_at: string | null;
+  withdrawn_at: string | null;
+  completed_at: string | null;
   created_at: string;
   listing: Listing | null;
   offered_coffee: Coffee | null;
@@ -96,7 +100,7 @@ export type Proposal = {
 };
 
 const PROPOSAL_SELECT = `id, listing_id, proposer_id, offered_dose_grams, message, status,
-  proposer_confirmed_at, owner_confirmed_at, created_at,
+  proposer_confirmed_at, owner_confirmed_at, accepted_at, declined_at, withdrawn_at, completed_at, created_at,
   listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
   offered_coffee:coffees!proposals_offered_coffee_id_fkey(${COFFEE_SELECT}),
   proposer:profiles!proposals_proposer_id_fkey(username, display_name)`;
@@ -109,6 +113,16 @@ export async function fetchProposals(): Promise<Proposal[]> {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data as unknown as Proposal[]) ?? [];
+}
+
+export async function fetchProposal(id: string): Promise<Proposal | null> {
+  const { data, error } = await supabase
+    .from('proposals')
+    .select(PROPOSAL_SELECT)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as Proposal | null;
 }
 
 /** Returns an error message, or null on success. */

@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { isProfileComplete } from '@/lib/profile';
 
@@ -11,10 +12,22 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { session, profile, loading } = useAuth();
   const complete = isProfileComplete(profile);
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   // Keep the native splash screen up until the persisted session is restored,
   // so we never flash the wrong screen on launch.
   if (loading) return null;
+
+  // Pushed detail/composer screens share a native header with a back button.
+  const pushedScreen = {
+    headerShown: true,
+    headerStyle: { backgroundColor: colors.background },
+    headerShadowVisible: false,
+    headerTintColor: colors.tint,
+    headerTitle: '',
+    headerBackButtonDisplayMode: 'minimal',
+  } as const;
 
   return (
     <>
@@ -22,8 +35,11 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={!!session && complete}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="share-dose" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="listing/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="share-dose" options={pushedScreen} />
+          <Stack.Screen name="listing/[id]" options={pushedScreen} />
+          <Stack.Screen name="propose/[listingId]" options={pushedScreen} />
+          <Stack.Screen name="trade/[id]" options={pushedScreen} />
+          <Stack.Screen name="user/[id]" options={pushedScreen} />
         </Stack.Protected>
         <Stack.Protected guard={!!session && !complete}>
           <Stack.Screen name="profile-setup" />

@@ -1,5 +1,5 @@
 import { Button, Host, Row } from '@expo/ui';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Pressable,
@@ -38,6 +38,7 @@ type Segment = 'active' | 'history';
 
 export default function TradesScreen() {
   const { session } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
@@ -104,9 +105,13 @@ export default function TradesScreen() {
       direction === 'incoming' ? p.proposer_confirmed_at : p.owner_confirmed_at;
 
     return (
-      <View
+      <Pressable
         key={p.id}
-        style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+        onPress={() => router.push({ pathname: '/trade/[id]', params: { id: p.id } })}
+        style={({ pressed }) => [
+          styles.card,
+          { backgroundColor: colors.backgroundElement, opacity: pressed ? 0.85 : 1 },
+        ]}>
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleBlock}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
@@ -187,7 +192,7 @@ export default function TradesScreen() {
               </Host>
             </>
           ))}
-      </View>
+      </Pressable>
     );
   };
 
