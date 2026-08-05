@@ -1,6 +1,7 @@
 import { Button, Host, Row, TextInput } from '@expo/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -22,7 +23,8 @@ import {
   withdrawProposal,
   type Proposal,
 } from '@/lib/listings';
-import { createReview, fetchMyReceivedReview, type CoffeeReview } from '@/lib/reviews';
+import { queryKeys } from '@/lib/query';
+import { createReview, fetchMyReceivedReview } from '@/lib/reviews';
 
 type TimelineEvent = {
   label: string;
@@ -82,29 +84,22 @@ export default function TradeDetailScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [myReview, setMyReview] = useState<CoffeeReview | null>(null);
   const reviewBody = useRef('');
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    try {
-      const row = await fetchProposal(id);
-      setProposal(row);
-      if (row?.status === 'completed' && session) {
-        setMyReview(await fetchMyReceivedReview(row.id, session.user.id));
-      }
-    } finally {
-      setLoaded(true);
-    }
-  }, [id, session]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data: proposal = null, isLoading } = useQuery({
+    queryKey: queryKeys.proposal(id ?? ''),
+    queryFn: () => fetchProposal(id as string),
+    enabled: id != null,
+  });
+  const { data: myReview = null } = useQuery({
+    queryKey: queryKeys.myReceivedReview(proposal?.id ?? '', session?.user.id ?? ''),
+    queryFn: () => fetchMyReceivedReview(proposal!.id, session!.user.id),
+    enabled: proposal?.status === 'completed' && session != null,
+  });
+  const loaded = !isLoading;
 
   const act = async (action: (id: string) => Promise<void>) => {
     if (busy || !proposal) return;
@@ -112,7 +107,8 @@ export default function TradeDetailScreen() {
     setError(null);
     try {
       await action(proposal.id);
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ['proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
     } catch (e) {
       const message =
         e && typeof e === 'object' && 'message' in e
@@ -172,7 +168,7 @@ export default function TradeDetailScreen() {
         context: 'received',
         body,
       });
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ['reviews'] });
     } catch (e) {
       const message =
         e && typeof e === 'object' && 'message' in e

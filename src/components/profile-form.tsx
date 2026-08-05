@@ -1,4 +1,5 @@
 import { Button, Host, TextInput } from '@expo/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 
 import { isKnownCity } from '@/constants/cities';
@@ -25,6 +26,7 @@ type ProfileFormProps = {
 
 export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps) {
   const { session, refreshProfile } = useAuth();
+  const queryClient = useQueryClient();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { width } = useWindowDimensions();
@@ -98,6 +100,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
         }
       } else {
         await refreshProfile();
+        queryClient.invalidateQueries({ queryKey: ['profiles'] });
         setSaved(true);
         onSaved?.();
       }

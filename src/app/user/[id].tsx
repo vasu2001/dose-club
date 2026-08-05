@@ -1,16 +1,12 @@
+import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { ScreenShell } from '@/components/screen-shell';
 import { ProfileSkeleton, Skeleton } from '@/components/skeleton';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import {
-  fetchProfile,
-  fetchProfileStats,
-  type Profile,
-  type ProfileStats,
-} from '@/lib/profile';
+import { fetchProfile, fetchProfileStats } from '@/lib/profile';
+import { queryKeys } from '@/lib/query';
 
 function StatTile({
   value,
@@ -38,24 +34,17 @@ export default function PublicProfileScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [stats, setStats] = useState<ProfileStats | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    Promise.all([fetchProfile(id), fetchProfileStats(id)])
-      .then(([p, s]) => {
-        if (cancelled) return;
-        setProfile(p);
-        setStats(s);
-      })
-      .finally(() => setLoaded(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  const { data: profile = null, isLoading } = useQuery({
+    queryKey: queryKeys.profile(id ?? ''),
+    queryFn: () => fetchProfile(id as string),
+    enabled: id != null,
+  });
+  const { data: stats = null } = useQuery({
+    queryKey: queryKeys.profileStats(id ?? ''),
+    queryFn: () => fetchProfileStats(id as string),
+    enabled: id != null,
+  });
+  const loaded = !isLoading;
 
   if (!profile) {
     return (

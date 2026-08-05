@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import {
   FlatList,
   Pressable,
@@ -15,7 +15,9 @@ import { ListingListSkeleton } from '@/components/skeleton';
 import { ScreenShell } from '@/components/screen-shell';
 import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { fetchMyListings, type Listing } from '@/lib/listings';
+import { fetchMyListings } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
+import { useRefetchOnFocus } from '@/lib/use-refetch-on-focus';
 
 export default function ShelfScreen() {
   const { session, profile } = useAuth();
@@ -23,25 +25,19 @@ export default function ShelfScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!session) return;
-    try {
-      setListings(await fetchMyListings(session.user.id));
-    } finally {
-      setLoaded(true);
-      setRefreshing(false);
-    }
-  }, [session]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  const userId = session?.user.id;
+  const {
+    data: listings = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.myListings(userId ?? ''),
+    queryFn: () => fetchMyListings(userId as string),
+    enabled: userId != null,
+  });
+  const loaded = !isLoading;
+  useRefetchOnFocus(refetch);
 
   return (
     <ScreenShell
@@ -67,11 +63,8 @@ export default function ShelfScreen() {
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
             tintColor={colors.tint}
           />
         }

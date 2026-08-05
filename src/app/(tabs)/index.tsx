@@ -1,6 +1,7 @@
 import { Button, Host, TextInput, type TextInputRef } from '@expo/ui';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -19,7 +20,9 @@ import { ScreenShell } from '@/components/screen-shell';
 import { BottomTabInset, Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS, type RoastLevel } from '@/lib/coffees';
-import { daysOffRoast, fetchActiveListings, type Listing } from '@/lib/listings';
+import { daysOffRoast, fetchActiveListings } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
+import { useRefetchOnFocus } from '@/lib/use-refetch-on-focus';
 
 const FRESH_DAYS = 14;
 
@@ -86,10 +89,6 @@ export default function BrowseScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -97,22 +96,24 @@ export default function BrowseScreen() {
   const [draft, setDraft] = useState<Filters>(NO_FILTERS);
   const searchRef = useRef<TextInputRef>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const all = await fetchActiveListings();
-      // Your own coffees live on your shelf, not in the browse feed.
-      setListings(all.filter((l) => l.owner_id !== session?.user.id));
-    } finally {
-      setLoaded(true);
-      setRefreshing(false);
-    }
-  }, [session?.user.id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
+  const {
+    data: allListings = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.activeListings,
+    queryFn: fetchActiveListings,
+    // Fresh doses matter — always revalidate in the background on focus.
+    refetchOnMount: 'always',
+  });
+  // Your own coffees live on your shelf, not in the browse feed.
+  const listings = useMemo(
+    () => allListings.filter((l) => l.owner_id !== session?.user.id),
+    [allListings, session?.user.id],
   );
+  const loaded = !isLoading;
+  useRefetchOnFocus(refetch);
 
   const cities = useMemo(
     () =>
@@ -298,11 +299,8 @@ export default function BrowseScreen() {
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
             tintColor={colors.tint}
           />
         }

@@ -1,6 +1,7 @@
 import { Button, Host, TextInput } from '@expo/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,7 +19,8 @@ import { ListingCardSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { type Coffee } from '@/lib/coffees';
-import { createProposal, fetchListing, type Listing } from '@/lib/listings';
+import { createProposal, fetchListing } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
 import { createReview } from '@/lib/reviews';
 
 function StepLabel({
@@ -48,8 +50,7 @@ export default function ProposeScreen() {
   const { width } = useWindowDimensions();
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
-  const [listing, setListing] = useState<Listing | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
   const [coffee, setCoffee] = useState<Coffee | null>(null);
   const [dose, setDose] = useState<number | null>(18);
   const message = useRef('');
@@ -57,18 +58,12 @@ export default function ProposeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!listingId) return;
-    try {
-      setListing(await fetchListing(listingId));
-    } finally {
-      setLoaded(true);
-    }
-  }, [listingId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data: listing = null, isLoading } = useQuery({
+    queryKey: queryKeys.listing(listingId ?? ''),
+    queryFn: () => fetchListing(listingId as string),
+    enabled: listingId != null,
+  });
+  const loaded = !isLoading;
 
   const sendProposal = async () => {
     if (busy || !session || !listing || !coffee) return;
@@ -99,6 +94,8 @@ export default function ProposeScreen() {
             body,
           }).catch(() => {});
         }
+        queryClient.invalidateQueries({ queryKey: ['proposals'] });
+        queryClient.invalidateQueries({ queryKey: ['reviews'] });
         router.dismissTo('/(tabs)');
       }
     } catch (e) {

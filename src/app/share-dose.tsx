@@ -1,5 +1,6 @@
 import { Button, Host, TextInput } from '@expo/ui';
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
@@ -52,6 +53,7 @@ function StepLabel({
 export default function ShareDoseScreen() {
   const { session } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const { width } = useWindowDimensions();
@@ -93,6 +95,8 @@ export default function ShareDoseScreen() {
             body,
           }).catch(() => {});
         }
+        queryClient.invalidateQueries({ queryKey: ['listings'] });
+        queryClient.invalidateQueries({ queryKey: ['reviews'] });
         router.back();
       }
     } catch (e) {

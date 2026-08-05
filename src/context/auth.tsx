@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { fetchProfile, type Profile } from '@/lib/profile';
+import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 
 type AuthContextValue = {
@@ -85,6 +86,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         refreshProfile,
         signOut: async () => {
           await supabase.auth.signOut();
+          // Cached data belongs to the signed-out user — drop it.
+          queryClient.clear();
         },
       }}>
       {children}

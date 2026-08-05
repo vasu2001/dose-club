@@ -1,6 +1,7 @@
 import { Button, Host, Row } from '@expo/ui';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -24,6 +25,8 @@ import {
   type Proposal,
   type ProposalStatus,
 } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
+import { useRefetchOnFocus } from '@/lib/use-refetch-on-focus';
 
 const STATUS_LABEL: Record<ProposalStatus, string> = {
   pending: 'PENDING',
@@ -43,27 +46,22 @@ export default function TradesScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
+  const queryClient = useQueryClient();
   const [segment, setSegment] = useState<Segment>('active');
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setProposals(await fetchProposals());
-    } finally {
-      setLoaded(true);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  const {
+    data: proposals = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.proposals,
+    queryFn: fetchProposals,
+  });
+  const loaded = !isLoading;
+  useRefetchOnFocus(refetch);
 
   const act = async (id: string, action: (id: string) => Promise<void>) => {
     if (busyId) return;
@@ -71,7 +69,9 @@ export default function TradesScreen() {
     setError(null);
     try {
       await action(id);
-      await load();
+      // Accepting/declining also affects listings and trade detail screens.
+      await queryClient.invalidateQueries({ queryKey: ['proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
     } catch (e) {
       const message =
         e && typeof e === 'object' && 'message' in e
@@ -239,11 +239,8 @@ export default function TradesScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
             tintColor={colors.tint}
           />
         }>

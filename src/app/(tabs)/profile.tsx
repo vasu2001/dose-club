@@ -1,6 +1,6 @@
 import { Button, Host } from '@expo/ui';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -15,7 +15,9 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { fetchProfileStats, type ProfileStats } from '@/lib/profile';
+import { fetchProfileStats } from '@/lib/profile';
+import { queryKeys } from '@/lib/query';
+import { useRefetchOnFocus } from '@/lib/use-refetch-on-focus';
 
 function StatTile({
   value,
@@ -63,22 +65,13 @@ export default function ProfileScreen() {
   const { width } = useWindowDimensions();
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
-  const [stats, setStats] = useState<ProfileStats | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!session) return;
-      let cancelled = false;
-      fetchProfileStats(session.user.id)
-        .then((s) => {
-          if (!cancelled) setStats(s);
-        })
-        .catch(() => {});
-      return () => {
-        cancelled = true;
-      };
-    }, [session]),
-  );
+  const userId = session?.user.id;
+  const { data: stats = null, refetch } = useQuery({
+    queryKey: queryKeys.profileStats(userId ?? ''),
+    queryFn: () => fetchProfileStats(userId as string),
+    enabled: userId != null,
+  });
+  useRefetchOnFocus(refetch);
 
   const initial = (profile?.display_name ?? profile?.username ?? '?')
     .charAt(0)

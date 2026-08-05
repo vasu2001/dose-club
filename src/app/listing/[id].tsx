@@ -1,6 +1,7 @@
 import { Button, Host } from '@expo/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -17,8 +18,9 @@ import { ListingDetailSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS } from '@/lib/coffees';
-import { closeListing, daysOffRoast, fetchListing, type Listing } from '@/lib/listings';
-import { fetchCoffeeReviews, type CoffeeReview } from '@/lib/reviews';
+import { closeListing, daysOffRoast, fetchListing } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
+import { fetchCoffeeReviews } from '@/lib/reviews';
 
 function SpecRow({
   label,
@@ -50,34 +52,30 @@ export default function ListingDetailScreen() {
   const { width } = useWindowDimensions();
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
-  const [listing, setListing] = useState<Listing | null>(null);
-  const [reviews, setReviews] = useState<CoffeeReview[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: listing = null, isLoading } = useQuery({
+    queryKey: queryKeys.listing(id ?? ''),
+    queryFn: () => fetchListing(id as string),
+    enabled: id != null,
+  });
+  const { data: reviews = [] } = useQuery({
+    queryKey: queryKeys.coffeeReviews(listing?.coffee.id ?? ''),
+    queryFn: () => fetchCoffeeReviews(listing!.coffee.id),
+    enabled: listing != null,
+  });
+  const loaded = !isLoading;
+
   const isOwner = !!listing && listing.owner_id === session?.user.id;
-
-  const load = useCallback(async () => {
-    if (!id) return;
-    try {
-      const row = await fetchListing(id);
-      setListing(row);
-      if (row) setReviews(await fetchCoffeeReviews(row.coffee.id));
-    } finally {
-      setLoaded(true);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const removeListing = async () => {
     if (busy || !listing) return;
     setBusy(true);
     try {
       await closeListing(listing.id);
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
       router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');

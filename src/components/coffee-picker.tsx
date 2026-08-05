@@ -1,4 +1,5 @@
 import { Button, Host, TextInput, type TextInputRef } from '@expo/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +23,7 @@ import {
   type RoastLevel,
   type Roaster,
 } from '@/lib/coffees';
+import { queryKeys } from '@/lib/query';
 
 type CoffeePickerProps = {
   selected: Coffee | null;
@@ -82,11 +84,10 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  const [mine, setMine] = useState<Coffee[]>([]);
+  const queryClient = useQueryClient();
   const [results, setResults] = useState<Coffee[]>([]);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -104,18 +105,13 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
   const process = useRef('');
   const roasterNotes = useRef('');
 
-  useEffect(() => {
-    if (!session) return;
-    let cancelled = false;
-    fetchMyCoffees(session.user.id)
-      .then((rows) => {
-        if (!cancelled) setMine(rows);
-      })
-      .finally(() => setLoaded(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
+  const userId = session?.user.id;
+  const { data: mine = [], isLoading } = useQuery({
+    queryKey: queryKeys.myCoffees(userId ?? ''),
+    queryFn: () => fetchMyCoffees(userId as string),
+    enabled: userId != null,
+  });
+  const loaded = !isLoading;
 
   useEffect(() => {
     const q = query.trim();
@@ -168,7 +164,7 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
         roast_level: roastLevel,
         roaster_notes: roasterNotes.current.trim() || null,
       });
-      setMine((prev) => [coffee, ...prev]);
+      queryClient.invalidateQueries({ queryKey: ['coffees'] });
       setAdding(false);
       onSelect(coffee);
     } catch (e) {
