@@ -3,8 +3,7 @@
 -- someone else's listing. Lifecycle:
 --   pending -> accepted -> completed (both sides confirm the exchange)
 --   pending -> declined (owner) | withdrawn (proposer)
---   pending -> not_accepted (auto-archived when the owner accepts a rival
---              proposal on the same listing)
+--   pending -> listing_closed (auto-archived when the listing is closed)
 
 create table public.proposals (
   id uuid primary key default gen_random_uuid(),
@@ -12,7 +11,7 @@ create table public.proposals (
   proposer_id uuid not null references public.profiles (id) on delete cascade,
   message text check (char_length(message) <= 500),
   status text not null default 'pending'
-    check (status in ('pending', 'accepted', 'declined', 'withdrawn', 'completed', 'not_accepted')),
+    check (status in ('pending', 'accepted', 'declined', 'withdrawn', 'completed', 'listing_closed')),
   proposer_confirmed_at timestamptz,
   owner_confirmed_at timestamptz,
   accepted_at timestamptz,
@@ -106,7 +105,7 @@ begin
   if new.status is distinct from old.status then
     if new.status = 'accepted' then
       new.accepted_at = coalesce(new.accepted_at, now());
-    elsif new.status in ('declined', 'not_accepted') then
+    elsif new.status in ('declined', 'listing_closed') then
       new.declined_at = coalesce(new.declined_at, now());
     elsif new.status = 'withdrawn' then
       new.withdrawn_at = coalesce(new.withdrawn_at, now());
@@ -202,14 +201,10 @@ begin
 end;
 $$;
 
--- Accepting a proposal settles the current round on every involved listing
--- (the target and any listings offered as items):
---   * other pending proposals ON those listings -> not_accepted
---   * pending proposals OFFERING those listings as items -> withdrawn
--- The listings themselves stay open — whether a bag keeps trading is the
--- owner's call, asked at completion time in the app. Until acceptance
--- nothing is blocked: a listing with pending proposals can still be
--- offered elsewhere.
+-- Accepting a proposal affects only that proposal: rival pending proposals
+-- survive and can each be accepted too — one listing serves many trades.
+-- Listings never close automatically; closing is offered as an option when
+-- a trade completes.
 create or replace function public.accept_proposal(p_proposal_id uuid)
 returns void
 language plpgsql
@@ -220,7 +215,6 @@ declare
   v_listing_id uuid;
   v_owner uuid;
   v_status text;
-  v_listing_ids uuid[];
 begin
   select listing_id, status into v_listing_id, v_status
   from public.proposals
@@ -246,28 +240,40 @@ begin
   update public.proposals
   set status = 'accepted'
   where id = p_proposal_id;
-
-  select array_agg(listing_id) || v_listing_id into v_listing_ids
-  from public.proposal_items
-  where proposal_id = p_proposal_id and listing_id is not null;
-  v_listing_ids := coalesce(v_listing_ids, array[v_listing_id]);
-
-  update public.proposals
-  set status = 'not_accepted'
-  where status = 'pending'
-    and id <> p_proposal_id
-    and listing_id = any (v_listing_ids);
-
-  update public.proposals
-  set status = 'withdrawn'
-  where status = 'pending'
-    and id <> p_proposal_id
-    and id in (
-      select proposal_id from public.proposal_items
-      where listing_id = any (v_listing_ids)
-    );
 end;
 $$;
+
+-- Proposals auto-archive ONLY when a listing goes away (owner closes it):
+--   * pending proposals ON the listing -> listing_closed ("listing closed")
+--   * pending proposals OFFERING the listing as an item -> withdrawn
+-- Accepted trades in flight are left alone.
+create or replace function public.archive_proposals_on_listing_close()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.status = 'closed' and old.status = 'active' then
+    update public.proposals
+    set status = 'listing_closed'
+    where listing_id = new.id and status = 'pending';
+
+    update public.proposals
+    set status = 'withdrawn'
+    where status = 'pending'
+      and id in (
+        select proposal_id from public.proposal_items
+        where listing_id = new.id
+      );
+  end if;
+  return new;
+end;
+$$;
+
+create trigger listings_archive_proposals_on_close
+  after update on public.listings
+  for each row execute function public.archive_proposals_on_listing_close();
 
 create or replace function public.decline_proposal(p_proposal_id uuid)
 returns void

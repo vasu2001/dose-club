@@ -85,7 +85,7 @@ export type ProposalStatus =
   | 'declined'
   | 'withdrawn'
   | 'completed'
-  | 'not_accepted';
+  | 'listing_closed';
 
 /** One coffee in an offer. `listing_id` set when it came off the proposer's shelf. */
 export type ProposalItem = {

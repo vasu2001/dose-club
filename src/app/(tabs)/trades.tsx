@@ -35,7 +35,7 @@ const STATUS_LABEL: Record<ProposalStatus, string> = {
   declined: 'DECLINED',
   withdrawn: 'WITHDRAWN',
   completed: 'COMPLETED ✓',
-  not_accepted: 'NOT ACCEPTED',
+  listing_closed: 'LISTING CLOSED',
 };
 
 const ACTIVE_STATUSES: ProposalStatus[] = ['pending', 'accepted'];

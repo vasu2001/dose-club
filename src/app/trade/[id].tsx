@@ -41,8 +41,8 @@ function buildTimeline(p: Proposal, proposerName: string, ownerName: string): Ti
   if (p.declined_at)
     events.push({
       label:
-        p.status === 'not_accepted'
-          ? `${ownerName} went with another offer`
+        p.status === 'listing_closed'
+          ? `${ownerName} closed the listing`
           : `${ownerName} declined`,
       at: p.declined_at,
     });
