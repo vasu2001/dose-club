@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -128,50 +129,55 @@ export default function ShareDoseScreen() {
               <DoseChips value={dose} onChange={setDose} />
 
               <View style={[styles.dateCard, { backgroundColor: colors.backgroundElement }]}>
-                <View style={styles.dateRow}>
-                  <View style={styles.dateText}>
-                    <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
-                      ROASTED ON
+                <View style={styles.dateText}>
+                  <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
+                    ROASTED ON
+                  </Text>
+                  {roastDate == null && (
+                    <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
+                      Fresher reads better on the shelf.
                     </Text>
-                    {roastDate == null && !pickingDate && (
-                      <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
-                        Fresher reads better on the shelf.
-                      </Text>
-                    )}
-                  </View>
-                  {roastDate != null ? (
-                    <View style={styles.dateControls}>
-                      <Pressable
-                        onPress={() => {
-                          setRoastDate(null);
-                          setPickingDate(false);
-                        }}
-                        hitSlop={8}>
-                        <Text style={[styles.dateClear, { color: colors.textSecondary }]}>
-                          ✕
-                        </Text>
-                      </Pressable>
-                      <DateTimePicker
-                        value={roastDate}
-                        mode="date"
-                        display="compact"
-                        maximumDate={new Date()}
-                        accentColor={colors.tint}
-                        style={styles.datePicker}
-                        onValueChange={(_, date) => setRoastDate(date)}
-                      />
-                    </View>
-                  ) : (
-                    <Pressable onPress={() => setPickingDate((v) => !v)} hitSlop={8}>
-                      <Text style={[styles.dateAdd, { color: colors.tint }]}>
-                        {pickingDate ? 'Cancel' : '+ Add date'}
-                      </Text>
-                    </Pressable>
                   )}
                 </View>
-                {pickingDate && roastDate == null && (
+                {roastDate != null ? (
+                  <View style={styles.dateControls}>
+                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
+                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setPickingDate(true)}
+                      style={[styles.datePill, { backgroundColor: colors.backgroundSelected }]}>
+                      <Text style={[styles.datePillText, { color: colors.text }]}>
+                        {roastDate.toLocaleDateString(undefined, {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => setPickingDate(true)} hitSlop={8}>
+                    <Text style={[styles.dateAdd, { color: colors.tint }]}>+ Add date</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <Modal
+                visible={pickingDate}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setPickingDate(false)}>
+                <Pressable style={styles.backdrop} onPress={() => setPickingDate(false)} />
+                <View style={[styles.dateSheet, { backgroundColor: colors.background }]}>
+                  <View
+                    style={[styles.grabber, { backgroundColor: colors.backgroundSelected }]}
+                  />
+                  <Text style={[styles.dateSheetTitle, { color: colors.text }]}>
+                    Roasted on
+                  </Text>
                   <DateTimePicker
-                    value={new Date()}
+                    value={roastDate ?? new Date()}
                     mode="date"
                     display="inline"
                     maximumDate={new Date()}
@@ -182,8 +188,8 @@ export default function ShareDoseScreen() {
                       setPickingDate(false);
                     }}
                   />
-                )}
-              </View>
+                </View>
+              </Modal>
 
               <Field label="A WORD FROM YOU" colors={colors} inputHeight={72}>
                 <TextInput
@@ -251,21 +257,51 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   dateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
     borderRadius: 16,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
     minHeight: 56,
   },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: 36,
-  },
   dateText: {
     flex: 1,
     gap: 2,
+  },
+  datePill: {
+    borderRadius: 10,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one + 2,
+  },
+  datePillText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  dateSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.six,
+    gap: Spacing.two,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    marginBottom: Spacing.one,
+  },
+  dateSheetTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '700',
   },
   dateCalendar: {
     width: '100%',
@@ -284,10 +320,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  datePicker: {
-    width: 118,
-    height: 36,
   },
   dateClear: {
     fontSize: 15,
