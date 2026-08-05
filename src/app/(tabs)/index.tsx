@@ -1,8 +1,9 @@
-import { Host, TextInput } from '@expo/ui';
+import { Button, Host, TextInput, type TextInputRef } from '@expo/ui';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,9 +18,22 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { ROAST_LABEL, roastIndex, ROAST_LEVELS, type RoastLevel } from '@/lib/coffees';
-import { fetchActiveListings, type Listing } from '@/lib/listings';
+import { daysOffRoast, fetchActiveListings, type Listing } from '@/lib/listings';
 
-function Chip({
+type QuickTab = 'all' | 'fresh' | 'my-city';
+
+const FRESH_DAYS = 14;
+
+type Filters = {
+  roast: RoastLevel | null;
+  process: string | null;
+  city: string | null;
+  maxDays: number | null;
+};
+
+const NO_FILTERS: Filters = { roast: null, process: null, city: null, maxDays: null };
+
+function FilterChip({
   label,
   selected,
   onPress,
@@ -36,20 +50,35 @@ function Chip({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? colors.tint : colors.backgroundElement,
-          borderColor: selected ? colors.tint : 'transparent',
+          backgroundColor: selected ? colors.tint : colors.backgroundSelected,
         },
       ]}>
-      <Text
-        style={[styles.chipText, { color: selected ? colors.background : colors.text }]}>
+      <Text style={[styles.chipText, { color: selected ? colors.background : colors.text }]}>
         {label}
       </Text>
     </Pressable>
   );
 }
 
+function SheetSection({
+  label,
+  colors,
+  children,
+}: {
+  label: string;
+  colors: (typeof Colors)['light' | 'dark'];
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.sheetSection}>
+      <Text style={[styles.sheetLabel, { color: colors.accent }]}>{label}</Text>
+      <View style={styles.sheetChips}>{children}</View>
+    </View>
+  );
+}
+
 export default function BrowseScreen() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -59,9 +88,12 @@ export default function BrowseScreen() {
   const [loaded, setLoaded] = useState(false);
 
   const [query, setQuery] = useState('');
-  const [city, setCity] = useState<string | null>(null);
-  const [roast, setRoast] = useState<RoastLevel | null>(null);
-  const [process, setProcess] = useState<string | null>(null);
+  const [tab, setTab] = useState<QuickTab>('all');
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Draft edited inside the sheet, applied on "Show doses".
+  const [draft, setDraft] = useState<Filters>(NO_FILTERS);
+  const searchRef = useRef<TextInputRef>(null);
 
   const load = useCallback(async () => {
     try {
@@ -80,7 +112,6 @@ export default function BrowseScreen() {
     }, [load]),
   );
 
-  // Filter options come from what's actually on offer.
   const cities = useMemo(
     () =>
       [...new Set(listings.map((l) => l.owner?.city).filter((c): c is string => !!c))].sort(),
@@ -113,13 +144,36 @@ export default function BrowseScreen() {
         .toLowerCase();
       if (!hay.includes(q)) return false;
     }
-    if (city && l.owner?.city !== city) return false;
-    if (roast && roastIndex(l.coffee.roast_level) !== ROAST_LEVELS.indexOf(roast)) return false;
-    if (process && l.coffee.process?.trim().toLowerCase() !== process) return false;
+    const days = daysOffRoast(l);
+    if (tab === 'fresh' && (days == null || days > FRESH_DAYS)) return false;
+    if (tab === 'my-city' && (!profile?.city || l.owner?.city !== profile.city)) return false;
+    if (filters.roast && roastIndex(l.coffee.roast_level) !== ROAST_LEVELS.indexOf(filters.roast))
+      return false;
+    if (filters.process && l.coffee.process?.trim().toLowerCase() !== filters.process)
+      return false;
+    if (filters.city && l.owner?.city !== filters.city) return false;
+    if (filters.maxDays != null && (days == null || days > filters.maxDays)) return false;
     return true;
   });
 
-  const filtering = q !== '' || city != null || roast != null || process != null;
+  const activeChips: { key: keyof Filters; label: string }[] = [];
+  if (filters.roast) activeChips.push({ key: 'roast', label: ROAST_LABEL[filters.roast] });
+  if (filters.process)
+    activeChips.push({
+      key: 'process',
+      label: filters.process.charAt(0).toUpperCase() + filters.process.slice(1),
+    });
+  if (filters.city) activeChips.push({ key: 'city', label: `📍 ${filters.city}` });
+  if (filters.maxDays != null)
+    activeChips.push({ key: 'maxDays', label: `≤ ${filters.maxDays}d off roast` });
+
+  const filterCount = activeChips.length;
+
+  const TABS: { key: QuickTab; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'fresh', label: 'Fresh' },
+    ...(profile?.city ? [{ key: 'my-city' as const, label: profile.city }] : []),
+  ];
 
   return (
     <ScreenShell
@@ -127,58 +181,89 @@ export default function BrowseScreen() {
       title="What's brewing"
       subtitle="Fresh doses other members are ready to trade."
       insetForTabs>
-      <View style={[styles.searchBox, { backgroundColor: colors.backgroundElement }]}>
+      <Pressable
+        onPress={() => searchRef.current?.focus?.()}
+        style={[styles.searchBox, { backgroundColor: colors.backgroundElement }]}>
         <Text style={[styles.searchIcon, { color: colors.textSecondary }]}>⌕</Text>
         <View style={styles.searchInput}>
           <Host matchContents>
             <TextInput
+              ref={searchRef}
               placeholder="Coffee, roaster, origin, member…"
               autoCorrect={false}
               onChangeText={setQuery}
             />
           </Host>
         </View>
+      </Pressable>
+
+      <View style={styles.controls}>
+        <View style={[styles.tabs, { backgroundColor: colors.backgroundElement }]}>
+          {TABS.map(({ key, label }) => {
+            const selected = tab === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setTab(key)}
+                style={[
+                  styles.tab,
+                  selected && { backgroundColor: colors.backgroundSelected },
+                ]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: selected ? colors.text : colors.textSecondary },
+                  ]}
+                  numberOfLines={1}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          onPress={() => {
+            setDraft(filters);
+            setSheetOpen(true);
+          }}
+          style={[
+            styles.filterButton,
+            {
+              backgroundColor:
+                filterCount > 0 ? colors.tint : colors.backgroundElement,
+            },
+          ]}>
+          <Text
+            style={[
+              styles.filterIcon,
+              { color: filterCount > 0 ? colors.background : colors.text },
+            ]}>
+            ☰
+          </Text>
+          {filterCount > 0 && (
+            <Text style={[styles.filterCount, { color: colors.background }]}>
+              {filterCount}
+            </Text>
+          )}
+        </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterStrip}
-        contentContainerStyle={styles.filterRow}>
-        {cities.map((c) => (
-          <Chip
-            key={`city-${c}`}
-            label={`📍 ${c}`}
-            selected={city === c}
-            onPress={() => setCity(city === c ? null : c)}
-            colors={colors}
-          />
-        ))}
-        {cities.length > 0 && (
-          <View style={[styles.filterDivider, { backgroundColor: colors.backgroundSelected }]} />
-        )}
-        {ROAST_LEVELS.map((r) => (
-          <Chip
-            key={`roast-${r}`}
-            label={ROAST_LABEL[r]}
-            selected={roast === r}
-            onPress={() => setRoast(roast === r ? null : r)}
-            colors={colors}
-          />
-        ))}
-        {processes.length > 0 && (
-          <View style={[styles.filterDivider, { backgroundColor: colors.backgroundSelected }]} />
-        )}
-        {processes.map((p) => (
-          <Chip
-            key={`process-${p}`}
-            label={p.charAt(0).toUpperCase() + p.slice(1)}
-            selected={process === p}
-            onPress={() => setProcess(process === p ? null : p)}
-            colors={colors}
-          />
-        ))}
-      </ScrollView>
+      {activeChips.length > 0 && (
+        <View style={styles.activeRow}>
+          {activeChips.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              onPress={() => setFilters((f) => ({ ...f, [key]: null }))}
+              style={[styles.activeChip, { backgroundColor: colors.backgroundSelected }]}>
+              <Text style={[styles.activeChipText, { color: colors.text }]}>{label}</Text>
+              <Text style={[styles.activeChipX, { color: colors.tint }]}>✕</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => setFilters(NO_FILTERS)} hitSlop={8}>
+            <Text style={[styles.clearAll, { color: colors.tint }]}>Clear all</Text>
+          </Pressable>
+        </View>
+      )}
 
       <FlatList
         data={visible}
@@ -204,14 +289,107 @@ export default function BrowseScreen() {
           loaded ? (
             <View style={styles.empty}>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {filtering
-                  ? 'Nothing matches those filters. Loosen up a little.'
+                {q || filterCount > 0 || tab !== 'all'
+                  ? 'Nothing matches. Loosen the filters a little.'
                   : 'No doses up for trade right now. Share one of yours to get things moving.'}
               </Text>
             </View>
           ) : null
         }
       />
+
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} />
+        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+          <View style={[styles.grabber, { backgroundColor: colors.backgroundSelected }]} />
+          <ScrollView contentContainerStyle={styles.sheetContent}>
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>Filter doses</Text>
+
+          <SheetSection label="ROAST LEVEL" colors={colors}>
+            {ROAST_LEVELS.map((r) => (
+              <FilterChip
+                key={r}
+                label={ROAST_LABEL[r]}
+                selected={draft.roast === r}
+                onPress={() =>
+                  setDraft((d) => ({ ...d, roast: d.roast === r ? null : r }))
+                }
+                colors={colors}
+              />
+            ))}
+          </SheetSection>
+
+          {processes.length > 0 && (
+            <SheetSection label="PROCESS" colors={colors}>
+              {processes.map((p) => (
+                <FilterChip
+                  key={p}
+                  label={p.charAt(0).toUpperCase() + p.slice(1)}
+                  selected={draft.process === p}
+                  onPress={() =>
+                    setDraft((d) => ({ ...d, process: d.process === p ? null : p }))
+                  }
+                  colors={colors}
+                />
+              ))}
+            </SheetSection>
+          )}
+
+          {cities.length > 0 && (
+            <SheetSection label="CITY" colors={colors}>
+              {cities.map((c) => (
+                <FilterChip
+                  key={c}
+                  label={c}
+                  selected={draft.city === c}
+                  onPress={() =>
+                    setDraft((d) => ({ ...d, city: d.city === c ? null : c }))
+                  }
+                  colors={colors}
+                />
+              ))}
+            </SheetSection>
+          )}
+
+          <SheetSection label="FRESHNESS" colors={colors}>
+            {[7, 14, 30].map((days) => (
+              <FilterChip
+                key={days}
+                label={`≤ ${days} days`}
+                selected={draft.maxDays === days}
+                onPress={() =>
+                  setDraft((d) => ({ ...d, maxDays: d.maxDays === days ? null : days }))
+                }
+                colors={colors}
+              />
+            ))}
+          </SheetSection>
+
+            <View style={styles.sheetActions}>
+              <Pressable onPress={() => setDraft(NO_FILTERS)} hitSlop={8}>
+                <Text style={[styles.clearAll, { color: colors.textSecondary }]}>
+                  Clear all
+                </Text>
+              </Pressable>
+              <Host matchContents seedColor={colors.tint}>
+                <Button
+                  variant="filled"
+                  label="Show doses"
+                  style={{ height: 44 }}
+                  onPress={() => {
+                    setFilters(draft);
+                    setSheetOpen(false);
+                  }}
+                />
+              </Host>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -234,29 +412,81 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
   },
-  filterStrip: {
-    flexGrow: 0,
+  controls: {
+    flexDirection: 'row',
+    gap: Spacing.two,
     marginBottom: Spacing.two,
   },
-  filterRow: {
-    gap: Spacing.one + 2,
-    alignItems: 'center',
-    paddingRight: Spacing.three,
+  tabs: {
+    flex: 1,
+    flexDirection: 'row',
+    borderRadius: 999,
+    padding: 3,
   },
-  filterDivider: {
-    width: 1.5,
-    height: 20,
-    marginHorizontal: Spacing.one,
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingVertical: Spacing.one + 4,
+    paddingHorizontal: Spacing.two,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+  },
+  filterIcon: {
+    fontSize: 17,
+  },
+  filterCount: {
+    fontFamily: Fonts.mono,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  activeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    marginBottom: Spacing.two,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one + 1,
+  },
+  activeChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  activeChipX: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  clearAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    paddingHorizontal: Spacing.one,
   },
   chip: {
     borderRadius: 999,
-    borderWidth: 1.5,
     paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.one + 2,
+    paddingVertical: Spacing.one + 3,
   },
   chipText: {
     fontFamily: Fonts.mono,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   list: {
@@ -269,5 +499,53 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  sheet: {
+    maxHeight: '80%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: Spacing.two,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    marginBottom: Spacing.one,
+  },
+  sheetContent: {
+    padding: Spacing.four,
+    paddingBottom: Spacing.five + Spacing.three,
+    gap: Spacing.three,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '700',
+  },
+  sheetSection: {
+    gap: Spacing.two,
+  },
+  sheetLabel: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  sheetChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one + 2,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.two,
   },
 });
