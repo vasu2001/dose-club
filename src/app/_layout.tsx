@@ -40,6 +40,7 @@ function RootNavigator() {
           <Stack.Screen name="propose/[listingId]" options={pushedScreen} />
           <Stack.Screen name="trade/[id]" options={pushedScreen} />
           <Stack.Screen name="user/[id]" options={pushedScreen} />
+          <Stack.Screen name="edit-profile" options={pushedScreen} />
         </Stack.Protected>
         <Stack.Protected guard={!!session && !complete}>
           <Stack.Screen name="profile-setup" />
