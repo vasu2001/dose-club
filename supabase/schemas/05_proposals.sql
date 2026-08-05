@@ -39,16 +39,12 @@ create policy "proposals_select_involved" on public.proposals
     )
   );
 
--- Offer must be a coffee you own, on someone else's active listing.
+-- Offer any catalog coffee (you physically own the beans, the catalog entry
+-- is shared), on someone else's active listing.
 create policy "proposals_insert_own_offer" on public.proposals
   for insert to authenticated
   with check (
     (select auth.uid()) = proposer_id
-    and exists (
-      select 1 from public.coffees c
-      where c.id = offered_coffee_id
-        and c.owner_id = (select auth.uid())
-    )
     and exists (
       select 1 from public.listings l
       where l.id = listing_id

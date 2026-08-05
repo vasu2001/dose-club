@@ -4,7 +4,10 @@ create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text unique check (username ~ '^[a-z0-9_]{3,24}$'),
   display_name text check (char_length(display_name) between 1 and 60),
+  -- City is required for a complete profile (trades are local); enforced in
+  -- the app's isProfileComplete gate since rows are auto-created empty.
   city text check (char_length(city) <= 60),
+  phone text check (phone ~ '^\+?[0-9][0-9 -]{6,18}$'),
   bio text check (char_length(bio) <= 280),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

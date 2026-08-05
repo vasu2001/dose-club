@@ -1,4 +1,3 @@
-import { Button, Host } from '@expo/ui';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -8,36 +7,34 @@ import {
   Text,
   View,
   useColorScheme,
-  useWindowDimensions,
 } from 'react-native';
 
 import { ListingCard } from '@/components/listing-card';
 import { ScreenShell } from '@/components/screen-shell';
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { fetchMyListings, type Listing } from '@/lib/listings';
+import { fetchActiveListings, type Listing } from '@/lib/listings';
 
-export default function ShelfScreen() {
-  const { session, profile } = useAuth();
+export default function BrowseScreen() {
+  const { session } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { width } = useWindowDimensions();
-  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
-    if (!session) return;
     try {
-      setListings(await fetchMyListings(session.user.id));
+      const all = await fetchActiveListings();
+      // Your own coffees live on your shelf, not in the browse feed.
+      setListings(all.filter((l) => l.owner_id !== session?.user.id));
     } finally {
       setLoaded(true);
       setRefreshing(false);
     }
-  }, [session]);
+  }, [session?.user.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,9 +44,9 @@ export default function ShelfScreen() {
 
   return (
     <ScreenShell
-      eyebrow="YOUR SHELF"
-      title={profile?.display_name ? `${profile.display_name}'s doses` : 'Your doses'}
-      subtitle="Coffees you've put up for trade."
+      eyebrow="AVAILABLE DOSES"
+      title="What's brewing"
+      subtitle="Fresh doses other members are ready to trade."
       insetForTabs>
       <FlatList
         data={listings}
@@ -68,7 +65,6 @@ export default function ShelfScreen() {
         renderItem={({ item }) => (
           <ListingCard
             listing={item}
-            hideOwner
             onPress={() => router.push({ pathname: '/listing/[id]', params: { id: item.id } })}
           />
         )}
@@ -76,21 +72,11 @@ export default function ShelfScreen() {
           loaded ? (
             <View style={styles.empty}>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Your shelf is empty. Share a dose of whatever you're brewing to start
-                trading.
+                No doses up for trade right now. Share one of yours to get things
+                moving.
               </Text>
             </View>
           ) : null
-        }
-        ListFooterComponent={
-          <Host matchContents seedColor={colors.tint} style={styles.cta}>
-            <Button
-              variant="filled"
-              label="Share a dose"
-              style={{ width: buttonWidth, height: 50 }}
-              onPress={() => router.push('/share-dose')}
-            />
-          </Host>
         }
       />
     </ScreenShell>
@@ -108,9 +94,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  cta: {
-    width: '100%',
-    marginTop: Spacing.three,
   },
 });

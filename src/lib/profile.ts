@@ -5,19 +5,22 @@ export type Profile = {
   username: string | null;
   display_name: string | null;
   city: string | null;
+  phone: string | null;
   bio: string | null;
   created_at: string;
 };
 
-/** A profile counts as set up once it has a username and display name. */
+/** A profile counts as set up once it has username, display name, city and phone. */
 export function isProfileComplete(profile: Profile | null): boolean {
-  return !!profile?.username && !!profile?.display_name;
+  return (
+    !!profile?.username && !!profile?.display_name && !!profile?.city && !!profile?.phone
+  );
 }
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, display_name, city, bio, created_at')
+    .select('id, username, display_name, city, phone, bio, created_at')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -44,7 +47,8 @@ export async function fetchProfileStats(userId: string): Promise<ProfileStats> {
 export type ProfileInput = {
   username: string;
   display_name: string;
-  city: string | null;
+  city: string;
+  phone: string;
   bio: string | null;
 };
 
@@ -56,6 +60,9 @@ export async function saveProfile(userId: string, input: ProfileInput): Promise<
   if (!error) return null;
   if (error.code === '23505') return 'That username is taken — try another.';
   if (error.code === '23514') {
+    if (error.message.includes('phone')) {
+      return 'Phone number looks off — digits only, optional leading +.';
+    }
     return 'Username must be 3–24 characters: lowercase letters, numbers, underscores.';
   }
   return error.message;

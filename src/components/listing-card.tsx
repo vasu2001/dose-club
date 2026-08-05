@@ -52,8 +52,9 @@ export function ListingCard({ listing, onPress, hideOwner }: ListingCardProps) {
       </View>
 
       <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-        {listing.coffee.roaster}
+        {listing.coffee.roaster.name}
         {listing.coffee.origin ? ` · ${listing.coffee.origin}` : ''}
+        {listing.coffee.varietal ? ` · ${listing.coffee.varietal}` : ''}
       </Text>
 
       <View style={[styles.statsRow, { borderTopColor: colors.backgroundSelected }]}>

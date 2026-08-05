@@ -18,6 +18,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { createProposal, fetchListing, type Listing } from '@/lib/listings';
+import { createReview } from '@/lib/reviews';
 
 export default function ProposeScreen() {
   const { listingId } = useLocalSearchParams<{ listingId: string }>();
@@ -33,6 +34,7 @@ export default function ProposeScreen() {
   const [offeredCoffeeId, setOfferedCoffeeId] = useState<string | null>(null);
   const doseGrams = useRef('18');
   const message = useRef('');
+  const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -73,7 +75,17 @@ export default function ProposeScreen() {
       if (result) {
         setError(result);
       } else {
-        router.dismissTo('/(tabs)/explore');
+        const body = note.current.trim();
+        if (body) {
+          // Proposal already sent — a failed note shouldn't block it.
+          await createReview({
+            coffee_id: offeredCoffeeId,
+            author_id: session.user.id,
+            context: 'proposal',
+            body,
+          }).catch(() => {});
+        }
+        router.dismissTo('/(tabs)');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -120,6 +132,16 @@ export default function ProposeScreen() {
               keyboardType="number-pad"
               onChangeText={(t) => {
                 doseGrams.current = t;
+              }}
+            />
+          </Field>
+
+          <Field label="YOUR NOTE ON THIS COFFEE (OPTIONAL, PUBLIC)" colors={colors}>
+            <TextInput
+              placeholder="How it brews for you — recipes, impressions…"
+              multiline
+              onChangeText={(t) => {
+                note.current = t;
               }}
             />
           </Field>

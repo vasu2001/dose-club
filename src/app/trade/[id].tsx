@@ -1,6 +1,6 @@
-import { Button, Host, Row } from '@expo/ui';
+import { Button, Host, Row, TextInput } from '@expo/ui';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
@@ -20,6 +21,7 @@ import {
   withdrawProposal,
   type Proposal,
 } from '@/lib/listings';
+import { createReview, fetchMyReceivedReview, type CoffeeReview } from '@/lib/reviews';
 
 type TimelineEvent = {
   label: string;
@@ -83,15 +85,21 @@ export default function TradeDetailScreen() {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [myReview, setMyReview] = useState<CoffeeReview | null>(null);
+  const reviewBody = useRef('');
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      setProposal(await fetchProposal(id));
+      const row = await fetchProposal(id);
+      setProposal(row);
+      if (row?.status === 'completed' && session) {
+        setMyReview(await fetchMyReceivedReview(row.id, session.user.id));
+      }
     } finally {
       setLoaded(true);
     }
-  }, [id]);
+  }, [id, session]);
 
   useEffect(() => {
     load();
@@ -140,6 +148,38 @@ export default function TradeDetailScreen() {
   const myConfirmation = iAmProposer
     ? proposal.proposer_confirmed_at
     : proposal.owner_confirmed_at;
+  const receivedCoffee = iAmProposer
+    ? proposal.listing?.coffee
+    : proposal.offered_coffee;
+
+  const submitReview = async () => {
+    if (busy || !session || !receivedCoffee) return;
+    const body = reviewBody.current.trim();
+    if (!body) {
+      setError('Write a few words about the coffee first.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await createReview({
+        coffee_id: receivedCoffee.id,
+        author_id: session.user.id,
+        proposal_id: proposal.id,
+        context: 'received',
+        body,
+      });
+      await load();
+    } catch (e) {
+      const message =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Something went wrong.';
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <ScreenShell
@@ -150,7 +190,7 @@ export default function TradeDetailScreen() {
         <CoffeeSide
           heading={`${proposerName === 'You' ? 'YOU GIVE' : `${proposerName} GIVES`}`}
           coffeeName={proposal.offered_coffee?.name ?? '—'}
-          meta={[proposal.offered_coffee?.roaster, proposal.offered_coffee?.origin]
+          meta={[proposal.offered_coffee?.roaster.name, proposal.offered_coffee?.origin]
             .filter(Boolean)
             .join(' · ')}
           dose={`${proposal.offered_dose_grams}g dose`}
@@ -159,7 +199,7 @@ export default function TradeDetailScreen() {
         <CoffeeSide
           heading={`${ownerName === 'You' ? 'YOU GIVE' : `${ownerName} GIVES`}`}
           coffeeName={proposal.listing?.coffee.name ?? '—'}
-          meta={[proposal.listing?.coffee.roaster, proposal.listing?.coffee.origin]
+          meta={[proposal.listing?.coffee.roaster.name, proposal.listing?.coffee.origin]
             .filter(Boolean)
             .join(' · ')}
           dose={`${proposal.listing?.dose_grams ?? '—'}g dose`}
@@ -256,6 +296,43 @@ export default function TradeDetailScreen() {
                 onPress={() => act(confirmTrade)}
               />
             </Host>
+          ))}
+
+        {proposal.status === 'completed' &&
+          receivedCoffee != null &&
+          (myReview ? (
+            <>
+              <Text style={[styles.sectionLabel, { color: colors.accent }]}>
+                YOUR REVIEW OF {receivedCoffee.name.toUpperCase()}
+              </Text>
+              <Text style={[styles.messageText, { color: colors.textSecondary }]}>
+                “{myReview.body}”
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.sectionLabel, { color: colors.accent }]}>
+                HOW WAS {receivedCoffee.name.toUpperCase()}?
+              </Text>
+              <Field label="YOUR REVIEW (PUBLIC)" colors={colors}>
+                <TextInput
+                  placeholder="Brewed it yet? Tell the club how it cups."
+                  multiline
+                  onChangeText={(t) => {
+                    reviewBody.current = t;
+                  }}
+                />
+              </Field>
+              <Host matchContents seedColor={colors.tint}>
+                <Button
+                  variant="outlined"
+                  label={busy ? '…' : 'Post review'}
+                  disabled={busy}
+                  style={{ height: 44 }}
+                  onPress={submitReview}
+                />
+              </Host>
+            </>
           ))}
       </ScrollView>
     </ScreenShell>

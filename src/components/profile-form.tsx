@@ -32,6 +32,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
   const displayName = useRef(profile?.display_name ?? '');
   const username = useRef(profile?.username ?? '');
   const city = useRef(profile?.city ?? '');
+  const phone = useRef(profile?.phone ?? '');
   const bio = useRef(profile?.bio ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -41,12 +42,18 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
     if (busy || !session) return;
     const name = displayName.current.trim();
     const handle = username.current.trim().toLowerCase();
-    if (!name || !handle) {
-      setError('Display name and username are required.');
+    const cityName = city.current.trim();
+    const phoneNumber = phone.current.trim();
+    if (!name || !handle || !cityName || !phoneNumber) {
+      setError('Display name, username, city and phone are required.');
       return;
     }
     if (!/^[a-z0-9_]{3,24}$/.test(handle)) {
       setError('Username must be 3–24 characters: lowercase letters, numbers, underscores.');
+      return;
+    }
+    if (!/^\+?[0-9][0-9 -]{6,18}$/.test(phoneNumber)) {
+      setError('Phone number looks off — digits only, optional leading +.');
       return;
     }
     setBusy(true);
@@ -56,7 +63,8 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
       const message = await saveProfile(session.user.id, {
         display_name: name,
         username: handle,
-        city: city.current.trim() || null,
+        city: cityName,
+        phone: phoneNumber,
         bio: bio.current.trim() || null,
       });
       setError(message);
@@ -101,12 +109,23 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             }}
           />
         </Field>
-        <Field label="CITY (OPTIONAL)" colors={colors}>
+        <Field label="CITY" colors={colors}>
           <TextInput
             placeholder="Bengaluru"
             defaultValue={profile?.city ?? undefined}
             onChangeText={(text) => {
               city.current = text;
+            }}
+          />
+        </Field>
+        <Field label="PHONE" colors={colors}>
+          <TextInput
+            placeholder="+91 98765 43210"
+            defaultValue={profile?.phone ?? undefined}
+            keyboardType="phone-pad"
+            autoCorrect={false}
+            onChangeText={(text) => {
+              phone.current = text;
             }}
           />
         </Field>

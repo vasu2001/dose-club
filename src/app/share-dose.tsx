@@ -17,6 +17,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { createListing } from '@/lib/listings';
+import { createReview } from '@/lib/reviews';
 
 export default function ShareDoseScreen() {
   const { session } = useAuth();
@@ -29,6 +30,7 @@ export default function ShareDoseScreen() {
   const [coffeeId, setCoffeeId] = useState<string | null>(null);
   const roastDate = useRef('');
   const doseGrams = useRef('18');
+  const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -59,6 +61,16 @@ export default function ShareDoseScreen() {
       if (message) {
         setError(message);
       } else {
+        const body = note.current.trim();
+        if (body) {
+          // The listing is up either way — a failed note shouldn't block it.
+          await createReview({
+            coffee_id: coffeeId,
+            author_id: session.user.id,
+            context: 'listing',
+            body,
+          }).catch(() => {});
+        }
         router.back();
       }
     } catch (e) {
@@ -102,6 +114,15 @@ export default function ShareDoseScreen() {
               keyboardType="number-pad"
               onChangeText={(t) => {
                 doseGrams.current = t;
+              }}
+            />
+          </Field>
+          <Field label="YOUR NOTE ON THIS COFFEE (OPTIONAL, PUBLIC)" colors={colors}>
+            <TextInput
+              placeholder="How it brews for you — recipes, impressions…"
+              multiline
+              onChangeText={(t) => {
+                note.current = t;
               }}
             />
           </Field>
