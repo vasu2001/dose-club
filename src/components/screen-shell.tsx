@@ -16,6 +16,8 @@ type ScreenShellProps = {
   /** Pad the bottom for the native tab bar. */
   insetForTabs?: boolean;
   edges?: Edges;
+  /** Rendered on the right side of the header, vertically centered. */
+  headerAction?: React.ReactNode;
   children?: React.ReactNode;
 };
 
@@ -25,6 +27,7 @@ export function ScreenShell({
   subtitle,
   insetForTabs,
   edges,
+  headerAction,
   children,
 }: ScreenShellProps) {
   const scheme = useColorScheme();
@@ -38,14 +41,17 @@ export function ScreenShell({
           styles.safeArea,
           insetForTabs && { paddingBottom: BottomTabInset + Spacing.three },
         ]}>
-        <View style={styles.header}>
-          {eyebrow != null && (
-            <Text style={[styles.eyebrow, { color: colors.accent }]}>{eyebrow}</Text>
-          )}
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-          {subtitle != null && (
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
-          )}
+        <View style={styles.headerRow}>
+          <View style={styles.header}>
+            {eyebrow != null && (
+              <Text style={[styles.eyebrow, { color: colors.accent }]}>{eyebrow}</Text>
+            )}
+            <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+            {subtitle != null && (
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+            )}
+          </View>
+          {headerAction}
         </View>
         {children}
       </SafeAreaView>
@@ -65,7 +71,13 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
   header: {
+    flex: 1,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
     gap: Spacing.one,

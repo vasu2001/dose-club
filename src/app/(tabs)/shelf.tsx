@@ -1,19 +1,18 @@
-import { Button, Host } from '@expo/ui';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
   useColorScheme,
-  useWindowDimensions,
 } from 'react-native';
 
 import { ListingCard } from '@/components/listing-card';
 import { ScreenShell } from '@/components/screen-shell';
-import { BottomTabInset, Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { fetchMyListings, type Listing } from '@/lib/listings';
 
@@ -22,8 +21,6 @@ export default function ShelfScreen() {
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { width } = useWindowDimensions();
-  const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,7 +47,18 @@ export default function ShelfScreen() {
       eyebrow="YOUR SHELF"
       title={profile?.display_name ? `${profile.display_name}'s doses` : 'Your doses'}
       subtitle="Coffees you've put up for trade."
-      edges={['top']}>
+      edges={['top']}
+      headerAction={
+        <Pressable
+          onPress={() => router.push('/share-dose')}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.addButton,
+            { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
+          ]}>
+          <Text style={[styles.addIcon, { color: colors.background }]}>+</Text>
+        </Pressable>
+      }>
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
@@ -77,21 +85,11 @@ export default function ShelfScreen() {
           loaded ? (
             <View style={styles.empty}>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Your shelf is empty. Share a dose of whatever you're brewing to start
-                trading.
+                Your shelf is empty. Tap + to share a dose of whatever you're
+                brewing and start trading.
               </Text>
             </View>
           ) : null
-        }
-        ListFooterComponent={
-          <Host matchContents seedColor={colors.tint} style={styles.cta}>
-            <Button
-              variant="filled"
-              label="Share a dose"
-              style={{ width: buttonWidth, height: 50 }}
-              onPress={() => router.push('/share-dose')}
-            />
-          </Host>
         }
       />
     </ScreenShell>
@@ -99,6 +97,24 @@ export default function ShelfScreen() {
 }
 
 const styles = StyleSheet.create({
+  addButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  addIcon: {
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '400',
+    marginTop: -2,
+  },
   list: {
     gap: Spacing.two,
     // Scroll under the floating tab bar; keep the last card reachable.
@@ -110,9 +126,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  cta: {
-    width: '100%',
-    marginTop: Spacing.three,
   },
 });
