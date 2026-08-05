@@ -51,17 +51,19 @@ export default function TradesScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Spinner only for a manual pull — background revalidation stays invisible,
+  // otherwise the list jumps every time focus returns from a sub screen.
+  const [refreshing, setRefreshing] = useState(false);
   const {
     data: proposals = [],
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery({
     queryKey: queryKeys.proposals,
     queryFn: fetchProposals,
   });
   const loaded = !isLoading;
-  useRefetchOnFocus(refetch);
+  useRefetchOnFocus(queryKeys.proposals);
 
   const act = async (id: string, action: (id: string) => Promise<void>) => {
     if (busyId) return;
@@ -239,8 +241,11 @@ export default function TradesScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              refetch().finally(() => setRefreshing(false));
+            }}
             tintColor={colors.tint}
           />
         }>

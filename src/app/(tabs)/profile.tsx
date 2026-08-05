@@ -66,12 +66,12 @@ export default function ProfileScreen() {
   const buttonWidth = Math.min(width, MaxContentWidth) - 2 * Spacing.four;
 
   const userId = session?.user.id;
-  const { data: stats = null, refetch } = useQuery({
+  const { data: stats = null } = useQuery({
     queryKey: queryKeys.profileStats(userId ?? ''),
     queryFn: () => fetchProfileStats(userId as string),
     enabled: userId != null,
   });
-  useRefetchOnFocus(refetch);
+  useRefetchOnFocus(queryKeys.profileStats(userId ?? ''));
 
   const initial = (profile?.display_name ?? profile?.username ?? '?')
     .charAt(0)

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -26,10 +27,12 @@ export default function ShelfScreen() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const userId = session?.user.id;
+  // Spinner only for a manual pull — background revalidation stays invisible,
+  // otherwise the list jumps every time focus returns from a sub screen.
+  const [refreshing, setRefreshing] = useState(false);
   const {
     data: listings = [],
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery({
     queryKey: queryKeys.myListings(userId ?? ''),
@@ -37,7 +40,7 @@ export default function ShelfScreen() {
     enabled: userId != null,
   });
   const loaded = !isLoading;
-  useRefetchOnFocus(refetch);
+  useRefetchOnFocus(queryKeys.myListings(userId ?? ''));
 
   return (
     <ScreenShell
@@ -63,8 +66,11 @@ export default function ShelfScreen() {
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              refetch().finally(() => setRefreshing(false));
+            }}
             tintColor={colors.tint}
           />
         }

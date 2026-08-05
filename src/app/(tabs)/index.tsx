@@ -96,16 +96,16 @@ export default function BrowseScreen() {
   const [draft, setDraft] = useState<Filters>(NO_FILTERS);
   const searchRef = useRef<TextInputRef>(null);
 
+  // Spinner only for a manual pull — background revalidation stays invisible,
+  // otherwise the list jumps every time focus returns from a sub screen.
+  const [refreshing, setRefreshing] = useState(false);
   const {
     data: allListings = [],
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery({
     queryKey: queryKeys.activeListings,
     queryFn: fetchActiveListings,
-    // Fresh doses matter — always revalidate in the background on focus.
-    refetchOnMount: 'always',
   });
   // Your own coffees live on your shelf, not in the browse feed.
   const listings = useMemo(
@@ -113,7 +113,7 @@ export default function BrowseScreen() {
     [allListings, session?.user.id],
   );
   const loaded = !isLoading;
-  useRefetchOnFocus(refetch);
+  useRefetchOnFocus(queryKeys.activeListings);
 
   const cities = useMemo(
     () =>
@@ -299,8 +299,11 @@ export default function BrowseScreen() {
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              refetch().finally(() => setRefreshing(false));
+            }}
             tintColor={colors.tint}
           />
         }

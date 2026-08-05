@@ -10,7 +10,7 @@ export const queryClient = new QueryClient({
     queries: {
       // Cached data renders instantly; anything older than this refetches in
       // the background when a screen mounts or refocuses.
-      staleTime: 30 * 1000,
+      staleTime: 60 * 1000,
       gcTime: DAY,
       retry: 1,
     },
