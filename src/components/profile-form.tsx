@@ -38,6 +38,12 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
   const phone = useRef(profile?.phone ?? '');
   const bio = useRef(profile?.bio ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    display_name?: string;
+    username?: string;
+    city?: string;
+    phone?: string;
+  }>({});
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -46,35 +52,53 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
     const name = displayName.current.trim();
     const handle = username.current.trim().toLowerCase();
     const phoneNumber = phone.current.trim();
-    if (!name || !handle || !city || !phoneNumber) {
-      setError('Display name, username, city and phone are required.');
-      return;
+
+    const errors: typeof fieldErrors = {};
+    if (!name) {
+      errors.display_name = 'Add a display name — this is how members see you.';
     }
-    if (!isKnownCity(city)) {
-      setError('Pick your city from the list.');
-      return;
+    if (!handle) {
+      errors.username = 'Pick a username.';
+    } else if (!/^[a-z0-9_]{3,24}$/.test(handle)) {
+      errors.username =
+        handle.length < 3 || handle.length > 24
+          ? 'Must be 3–24 characters long.'
+          : 'Only lowercase letters, numbers and underscores.';
     }
-    if (!/^[a-z0-9_]{3,24}$/.test(handle)) {
-      setError('Username must be 3–24 characters: lowercase letters, numbers, underscores.');
-      return;
+    if (!city) {
+      errors.city = 'Pick your city — trades happen in person.';
+    } else if (!isKnownCity(city)) {
+      errors.city = 'Pick your city from the list.';
     }
-    if (!/^\+?[0-9][0-9 -]{6,18}$/.test(phoneNumber)) {
-      setError('Phone number looks off — digits only, optional leading +.');
-      return;
+    if (!phoneNumber) {
+      errors.phone = 'Add a phone number so trade partners can reach you.';
+    } else if (!/^\+?[0-9][0-9 -]{6,18}$/.test(phoneNumber)) {
+      errors.phone = 'Digits only (spaces and dashes fine), optional leading +.';
     }
-    setBusy(true);
+    setFieldErrors(errors);
     setError(null);
+    if (Object.keys(errors).length > 0) return;
+
+    setBusy(true);
     setSaved(false);
     try {
       const message = await saveProfile(session.user.id, {
         display_name: name,
         username: handle,
-        city,
+        city: city as string,
         phone: phoneNumber,
         bio: bio.current.trim() || null,
       });
-      setError(message);
-      if (!message) {
+      if (message) {
+        // Map server-side failures onto the field they belong to.
+        if (message.toLowerCase().includes('username')) {
+          setFieldErrors({ username: message });
+        } else if (message.toLowerCase().includes('phone')) {
+          setFieldErrors({ phone: message });
+        } else {
+          setError(message);
+        }
+      } else {
         await refreshProfile();
         setSaved(true);
         onSaved?.();
@@ -94,7 +118,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
         style={styles.flex}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
-        <Field label="DISPLAY NAME" colors={colors}>
+        <Field label="DISPLAY NAME" colors={colors} error={fieldErrors.display_name}>
           <TextInput
             placeholder="June Kim"
             defaultValue={profile?.display_name ?? undefined}
@@ -104,7 +128,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             }}
           />
         </Field>
-        <Field label="USERNAME" colors={colors}>
+        <Field label="USERNAME" colors={colors} error={fieldErrors.username}>
           <TextInput
             placeholder="june_brews"
             defaultValue={profile?.username ?? undefined}
@@ -115,8 +139,8 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
             }}
           />
         </Field>
-        <CityPicker value={city} onChange={setCity} />
-        <Field label="PHONE" colors={colors}>
+        <CityPicker value={city} onChange={setCity} error={fieldErrors.city} />
+        <Field label="PHONE" colors={colors} error={fieldErrors.phone}>
           <TextInput
             placeholder="+91 98765 43210"
             defaultValue={profile?.phone ?? undefined}

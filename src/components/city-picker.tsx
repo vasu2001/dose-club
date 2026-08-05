@@ -8,10 +8,12 @@ import { INDIAN_CITIES } from '@/constants/cities';
 type CityPickerProps = {
   value: string | null;
   onChange: (city: string | null) => void;
+  /** Inline validation error — paints the card border red and shows the message. */
+  error?: string | null;
 };
 
 /** Pick a city from the supported list — no free text. */
-export function CityPicker({ value, onChange }: CityPickerProps) {
+export function CityPicker({ value, onChange, error }: CityPickerProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [query, setQuery] = useState('');
@@ -39,9 +41,20 @@ export function CityPicker({ value, onChange }: CityPickerProps) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.backgroundElement },
+          error != null && [styles.cardError, { borderColor: colors.danger }],
+        ]}>
         <View style={styles.cardText}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>CITY</Text>
+          <Text
+            style={[
+              styles.label,
+              { color: error != null ? colors.danger : colors.textSecondary },
+            ]}>
+            CITY
+          </Text>
           <Host matchContents>
             <TextInput
               key={pickCount}
@@ -72,6 +85,9 @@ export function CityPicker({ value, onChange }: CityPickerProps) {
         <Text style={[styles.noMatch, { color: colors.textSecondary }]}>
           Not on our city list yet — pick the nearest big city.
         </Text>
+      )}
+      {error != null && (
+        <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
       )}
     </View>
   );
@@ -124,5 +140,13 @@ const styles = StyleSheet.create({
   noMatch: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  cardError: {
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: Spacing.one,
   },
 });
