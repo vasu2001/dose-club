@@ -129,12 +129,13 @@ export default function ProposeScreen() {
       edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? undefined : 'height'}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive">
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets>
           <StepLabel step="01" title="YOUR OFFER" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 

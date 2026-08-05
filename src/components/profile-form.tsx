@@ -113,12 +113,13 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      behavior={Platform.OS === 'ios' ? undefined : 'height'}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive">
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets>
         <Field label="DISPLAY NAME" colors={colors} error={fieldErrors.display_name}>
           <TextInput
             placeholder="June Kim"

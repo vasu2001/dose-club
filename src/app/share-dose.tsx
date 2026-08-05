@@ -112,12 +112,13 @@ export default function ShareDoseScreen() {
       edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? undefined : 'height'}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive">
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets>
           <StepLabel step="01" title="THE COFFEE" colors={colors} />
           <CoffeePicker selected={coffee} onSelect={setCoffee} />
 
