@@ -93,6 +93,7 @@ export type ProposalItem = {
   listing_id: string | null;
   dose_grams: number;
   coffee: Coffee;
+  listing: { id: string; status: 'active' | 'closed' } | null;
 };
 
 export type Proposal = {
@@ -117,7 +118,8 @@ const PROPOSAL_SELECT = `id, listing_id, proposer_id, message, status,
   proposer_confirmed_at, owner_confirmed_at, accepted_at, declined_at, withdrawn_at, completed_at, created_at,
   listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
   items:proposal_items!proposal_items_proposal_id_fkey(id, listing_id, dose_grams,
-    coffee:coffees!proposal_items_coffee_id_fkey(${COFFEE_SELECT})),
+    coffee:coffees!proposal_items_coffee_id_fkey(${COFFEE_SELECT}),
+    listing:listings!proposal_items_listing_id_fkey(id, status)),
   proposer:profiles!proposals_proposer_id_fkey(username, display_name, city)`;
 
 export function offerTotalGrams(items: ProposalItem[]): number {

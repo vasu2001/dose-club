@@ -18,6 +18,7 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
   acceptProposal,
+  closeListing,
   confirmTrade,
   declineProposal,
   fetchProposal,
@@ -104,6 +105,8 @@ export default function TradeDetailScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewCoffeeId, setReviewCoffeeId] = useState<string | null>(null);
+  // Listings the user chose to keep open after completion (hides the prompt).
+  const [keptOpen, setKeptOpen] = useState<string[]>([]);
   const reviewBody = useRef('');
 
   const { data: proposal = null, isLoading } = useQuery({
@@ -174,6 +177,36 @@ export default function TradeDetailScreen() {
     : items.map((i) => i.coffee);
   const receivedCoffee =
     receivedCoffees.find((c) => c.id === reviewCoffeeId) ?? receivedCoffees[0] ?? null;
+  // My bags that served this trade and are still on the shelf — after
+  // completion the user decides per bag: keep taking offers or close it.
+  const myOpenListings = (
+    iAmProposer
+      ? items
+          .filter((i) => i.listing?.status === 'active')
+          .map((i) => ({ id: i.listing!.id, name: i.coffee.name }))
+      : proposal.listing?.status === 'active'
+        ? [{ id: proposal.listing.id, name: proposal.listing.coffee.name }]
+        : []
+  ).filter((l) => !keptOpen.includes(l.id));
+
+  const closeMyListing = async (listingId: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await closeListing(listingId);
+      await queryClient.invalidateQueries({ queryKey: ['proposals'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+    } catch (e) {
+      const message =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Something went wrong.';
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submitReview = async () => {
     if (busy || !session || !receivedCoffee) return;
@@ -327,6 +360,39 @@ export default function TradeDetailScreen() {
                 onPress={() => act(confirmTrade)}
               />
             </Host>
+          ))}
+
+        {proposal.status === 'completed' &&
+          myOpenListings.map((l) => (
+            <View
+              key={l.id}
+              style={[styles.side, { backgroundColor: colors.backgroundElement }]}>
+              <Text style={[styles.sideHeading, { color: colors.textSecondary }]}>
+                STILL ON YOUR SHELF
+              </Text>
+              <Text style={[styles.muted, { color: colors.text }]}>
+                {l.name} served this trade. Keep taking offers, or close the listing if the
+                bag is done.
+              </Text>
+              <Host matchContents seedColor={colors.tint}>
+                <Row spacing={Spacing.two}>
+                  <Button
+                    variant="outlined"
+                    label={busy ? '…' : 'Close listing'}
+                    disabled={busy}
+                    style={{ height: 40 }}
+                    onPress={() => closeMyListing(l.id)}
+                  />
+                  <Button
+                    variant="outlined"
+                    label="Keep it open"
+                    disabled={busy}
+                    style={{ height: 40 }}
+                    onPress={() => setKeptOpen((prev) => [...prev, l.id])}
+                  />
+                </Row>
+              </Host>
+            </View>
           ))}
 
         {proposal.status === 'completed' &&

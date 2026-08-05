@@ -202,13 +202,14 @@ begin
 end;
 $$;
 
--- Accepting a proposal commits every involved listing (the target and any
--- listings offered as items):
+-- Accepting a proposal settles the current round on every involved listing
+-- (the target and any listings offered as items):
 --   * other pending proposals ON those listings -> not_accepted
 --   * pending proposals OFFERING those listings as items -> withdrawn
---   * the listings close (leave Browse)
--- Until then nothing is blocked: a listing with pending proposals can still
--- be offered elsewhere — first accepted trade wins the bag.
+-- The listings themselves stay open — whether a bag keeps trading is the
+-- owner's call, asked at completion time in the app. Until acceptance
+-- nothing is blocked: a listing with pending proposals can still be
+-- offered elsewhere.
 create or replace function public.accept_proposal(p_proposal_id uuid)
 returns void
 language plpgsql
@@ -265,10 +266,6 @@ begin
       select proposal_id from public.proposal_items
       where listing_id = any (v_listing_ids)
     );
-
-  update public.listings
-  set status = 'closed'
-  where id = any (v_listing_ids);
 end;
 $$;
 
