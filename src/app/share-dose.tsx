@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   dateControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one + 2,
+    gap: Spacing.one,
   },
   dateClear: {
     fontSize: 15,
