@@ -233,6 +233,7 @@ export default function TradesScreen() {
       </View>
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         style={styles.flex}
         contentContainerStyle={styles.content}
         refreshControl={

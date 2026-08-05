@@ -109,7 +109,7 @@ export default function ListingDetailScreen() {
       title={listing.coffee.name}
       subtitle={`${listing.coffee.roaster.name}${listing.coffee.origin ? ` · ${listing.coffee.origin}` : ''}`}
       edges={['bottom']}>
-      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroRow}>
           <View style={[styles.heroTile, { backgroundColor: colors.backgroundElement }]}>
             <Text style={[styles.heroValue, { color: colors.text }]}>

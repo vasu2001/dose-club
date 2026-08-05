@@ -332,7 +332,7 @@ export default function BrowseScreen() {
         <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} />
         <View style={[styles.sheet, { backgroundColor: colors.background }]}>
           <View style={[styles.grabber, { backgroundColor: colors.backgroundSelected }]} />
-          <ScrollView contentContainerStyle={styles.sheetContent}>
+          <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
             <Text style={[styles.sheetTitle, { color: colors.text }]}>Filter doses</Text>
 
           <SheetSection label="ROAST LEVEL" colors={colors}>

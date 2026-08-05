@@ -115,6 +115,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? undefined : 'height'}>
       <ScrollView
+        showsVerticalScrollIndicator={false}
         style={styles.flex}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"

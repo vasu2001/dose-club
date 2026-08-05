@@ -186,7 +186,7 @@ export default function TradeDetailScreen() {
       eyebrow={`TRADE · ${proposal.status.toUpperCase()}`}
       title={`${proposal.offered_coffee?.name ?? 'A coffee'} ⇄ ${proposal.listing?.coffee.name ?? 'a coffee'}`}
       edges={['bottom']}>
-      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <CoffeeSide
           heading={`${proposerName === 'You' ? 'YOU GIVE' : `${proposerName} GIVES`}`}
           coffeeName={proposal.offered_coffee?.name ?? '—'}
