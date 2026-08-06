@@ -10,11 +10,10 @@ export default function AppTabs() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
-  // Light poll keeps the badge honest while the app is open.
+  // Realtime broadcasts invalidate this key, so no polling needed.
   const { data: unread = 0 } = useQuery({
     queryKey: queryKeys.unreadCount,
     queryFn: fetchUnreadCount,
-    refetchInterval: 30_000,
   });
 
   return (

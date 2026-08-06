@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { fetchProfile, type Profile } from '@/lib/profile';
+import { registerPushToken, unregisterPushToken } from '@/lib/push';
 import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 
@@ -77,6 +78,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setProfile(await fetchProfile(userId));
   }, [session?.user.id]);
 
+  // Register this device for pushes once a user is signed in.
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (userId) void registerPushToken(userId);
+  }, [userId]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -85,6 +92,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
         loading,
         refreshProfile,
         signOut: async () => {
+          // Stop pushes to this device first — the delete needs the session
+          // to still satisfy the push_tokens RLS policy.
+          await unregisterPushToken();
           await supabase.auth.signOut();
           // Cached data belongs to the signed-out user — drop it.
           queryClient.clear();
