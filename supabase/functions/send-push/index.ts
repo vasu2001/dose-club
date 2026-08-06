@@ -17,6 +17,13 @@ const supabase = createClient(
 );
 
 Deno.serve(async (req) => {
+  // Only the DB trigger knows this secret (stored in Vault); the anon-key JWT
+  // that satisfies the platform check is public and proves nothing.
+  const secret = Deno.env.get('PUSH_WEBHOOK_SECRET');
+  if (!secret || req.headers.get('x-webhook-secret') !== secret) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   const { record } = (await req.json()) as { record: NotificationRecord };
   if (!record?.user_id || !record?.title) {
     return new Response('bad payload', { status: 400 });

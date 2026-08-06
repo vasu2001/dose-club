@@ -44,14 +44,19 @@ create policy "inbox_topic_read_own" on realtime.messages
   using (realtime.topic() = 'user:' || (select auth.uid())::text || ':inbox');
 
 -- Fan a new notification out to realtime (foreground) and the push edge
--- function (background). The anon key below is the public client key; the
--- edge function does its own authorization with the service role key.
+-- function (background). The anon key below is the public client key (it only
+-- satisfies the platform's JWT check); the request is actually authenticated
+-- by the x-webhook-secret header, read at runtime from Vault:
+--   select vault.create_secret('<random>', 'push_webhook_secret');
+-- The same value must be set on the function: PUSH_WEBHOOK_SECRET.
 create or replace function public.deliver_notification()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_secret text;
 begin
   perform realtime.send(
     jsonb_build_object('id', new.id, 'type', new.type),
@@ -60,11 +65,18 @@ begin
     true
   );
 
+  -- Shared secret proves to the edge function that this call came from the
+  -- database, not from someone replaying the public anon key.
+  select decrypted_secret into v_secret
+  from vault.decrypted_secrets
+  where name = 'push_webhook_secret';
+
   perform net.http_post(
     url := 'https://lfoalaodlepdjqebvdga.supabase.co/functions/v1/send-push',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmb2FsYW9kbGVwZGpxZWJ2ZGdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NjA1ODYsImV4cCI6MjEwMTQzNjU4Nn0.Zg4Jl1707QgeRLkHtXQONE4SphpkZTi_0AHcqL3bwfo'
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmb2FsYW9kbGVwZGpxZWJ2ZGdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4NjA1ODYsImV4cCI6MjEwMTQzNjU4Nn0.Zg4Jl1707QgeRLkHtXQONE4SphpkZTi_0AHcqL3bwfo',
+      'x-webhook-secret', coalesce(v_secret, '')
     ),
     body := jsonb_build_object('record', to_jsonb(new))
   );
