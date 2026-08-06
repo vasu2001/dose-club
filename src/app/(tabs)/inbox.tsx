@@ -14,7 +14,7 @@ import {
 
 import { ScreenShell } from '@/components/screen-shell';
 import { TradeCardSkeleton } from '@/components/skeleton';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, Fonts, Spacing } from '@/constants/theme';
 import {
   fetchNotifications,
   markAllNotificationsRead,
@@ -183,7 +183,7 @@ export default function InboxScreen() {
           ? `${fresh.length} unread ${fresh.length === 1 ? 'update' : 'updates'}.`
           : 'You’re all caught up.'
       }
-      insetForTabs>
+      edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.flex}
@@ -268,7 +268,8 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.two,
-    paddingBottom: Spacing.five,
+    // Scroll under the floating tab bar; keep the last row reachable.
+    paddingBottom: BottomTabInset + Spacing.six,
   },
   sectionHeader: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import {
 
 import { ScreenShell } from '@/components/screen-shell';
 import { TradeCardSkeleton } from '@/components/skeleton';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
   acceptProposal,
@@ -210,7 +210,7 @@ export default function TradesScreen() {
       eyebrow="TRADE MANAGER"
       title="Your trades"
       subtitle="Proposals on your doses, and offers you've made."
-      insetForTabs>
+      edges={['top']}>
       <View style={styles.segments}>
         {(['active', 'history'] as const).map((s) => {
           const selected = segment === s;
@@ -312,7 +312,8 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.two,
-    paddingBottom: Spacing.five,
+    // Scroll under the floating tab bar; keep the last card reachable.
+    paddingBottom: BottomTabInset + Spacing.six,
   },
   sectionLabel: {
     fontFamily: Fonts.mono,

@@ -13,7 +13,7 @@ import {
 
 import { ScreenShell } from '@/components/screen-shell';
 import { Skeleton } from '@/components/skeleton';
-import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { fetchProfileStats } from '@/lib/profile';
 import { queryKeys } from '@/lib/query';
@@ -88,7 +88,7 @@ export default function ProfileScreen() {
       eyebrow="YOUR CORNER"
       title={profile?.display_name ?? 'Your profile'}
       subtitle={`@${profile?.username ?? '—'}`}
-      insetForTabs>
+      edges={['top']}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
@@ -155,7 +155,8 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: Spacing.three,
-    paddingBottom: Spacing.five,
+    // Scroll under the floating tab bar; keep the sign-out button reachable.
+    paddingBottom: BottomTabInset + Spacing.six,
   },
   hero: {
     flexDirection: 'row',
