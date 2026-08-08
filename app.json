@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.vasu2001.doseclub"
+      "bundleIdentifier": "com.vasu2001.doseclub",
+      "appleTeamId": "L5CL3594R4"
     },
     "android": {
       "package": "com.vasu2001.doseclub",
