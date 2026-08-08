@@ -1,11 +1,8 @@
 import { Button, Host, TextInput } from '@expo/ui';
-import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Modal,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -25,14 +22,6 @@ import { type Coffee } from '@/lib/coffees';
 import { createListing } from '@/lib/listings';
 import { queryKeys } from '@/lib/query';
 import { createReview } from '@/lib/reviews';
-
-/** Local YYYY-MM-DD (toISOString would shift the day across timezones). */
-function toIsoDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 function StepLabel({
   step,
@@ -64,23 +53,19 @@ export default function ShareDoseScreen() {
 
   const [coffee, setCoffee] = useState<Coffee | null>(null);
   const [dose, setDose] = useState<number | null>(18);
-  const [roastDate, setRoastDate] = useState<Date | null>(null);
-  // "+ Add date" opens an inline calendar; nothing is picked until a tap.
-  const [pickingDate, setPickingDate] = useState(false);
   const note = useRef('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Sharing from a stash bag: the coffee and roast date come from the bag.
+  // Sharing from a stash bag: the coffee comes from the bag, and the roast
+  // date is the bag's — never entered here.
   const { data: bag } = useQuery({
     queryKey: queryKeys.bag(bagId ?? ''),
     queryFn: () => fetchBag(bagId as string),
     enabled: !!bagId,
   });
   useEffect(() => {
-    if (!bag) return;
-    setCoffee(bag.coffee);
-    if (bag.roast_date) setRoastDate(new Date(`${bag.roast_date}T00:00:00`));
+    if (bag) setCoffee(bag.coffee);
   }, [bag]);
 
   const submit = async () => {
@@ -92,12 +77,13 @@ export default function ShareDoseScreen() {
     setBusy(true);
     setError(null);
     try {
+      // Only link the bag if the user kept its coffee (they can swap in the
+      // picker) and the bag still exists.
+      const fromBag = bag != null && coffee.id === bag.coffee.id;
       const message = await createListing(session.user.id, {
         coffee_id: coffee.id,
-        // Only link the bag if the user kept its coffee (they can swap in the
-        // picker) and the bag still exists.
-        bag_id: bag && coffee.id === bag.coffee.id ? bag.id : null,
-        roast_date: roastDate ? toIsoDate(roastDate) : null,
+        bag_id: fromBag ? bag.id : null,
+        roast_date: fromBag ? bag.roast_date : null,
         dose_grams: dose,
       });
       if (message) {
@@ -142,74 +128,11 @@ export default function ShareDoseScreen() {
 
           {coffee != null && (
             <>
-              <StepLabel step="02" title="THE BAG" colors={colors} />
+              <StepLabel step="02" title="THE DOSE" colors={colors} />
               <Text style={[styles.hint, { color: colors.textSecondary }]}>
                 How big a dose are you sharing?
               </Text>
               <DoseChips value={dose} onChange={setDose} />
-
-              <View style={[styles.dateCard, { backgroundColor: colors.backgroundElement }]}>
-                <View style={styles.dateText}>
-                  <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
-                    ROASTED ON
-                  </Text>
-                  {roastDate == null && (
-                    <Text style={[styles.dateHint, { color: colors.textSecondary }]}>
-                      Fresher reads better on the shelf.
-                    </Text>
-                  )}
-                </View>
-                {roastDate != null ? (
-                  <View style={styles.dateControls}>
-                    <Pressable
-                      onPress={() => setPickingDate(true)}
-                      style={[styles.datePill, { backgroundColor: colors.backgroundSelected }]}>
-                      <Text style={[styles.datePillText, { color: colors.text }]}>
-                        {roastDate.toLocaleDateString(undefined, {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={() => setRoastDate(null)} hitSlop={8}>
-                      <Text style={[styles.dateClear, { color: colors.textSecondary }]}>✕</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable onPress={() => setPickingDate(true)} hitSlop={8}>
-                    <Text style={[styles.dateAdd, { color: colors.tint }]}>+ Add date</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              <Modal
-                visible={pickingDate}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setPickingDate(false)}>
-                <Pressable style={styles.backdrop} onPress={() => setPickingDate(false)} />
-                <View style={[styles.dateSheet, { backgroundColor: colors.background }]}>
-                  <View
-                    style={[styles.grabber, { backgroundColor: colors.backgroundSelected }]}
-                  />
-                  <Text style={[styles.dateSheetTitle, { color: colors.text }]}>
-                    Roasted on
-                  </Text>
-                  <DateTimePicker
-                    value={roastDate ?? new Date()}
-                    mode="date"
-                    display="inline"
-                    maximumDate={new Date()}
-                    accentColor={colors.tint}
-                    style={styles.dateCalendar}
-                    onValueChange={(_, date) => {
-                      setRoastDate(date);
-                      setPickingDate(false);
-                    }}
-                  />
-                </View>
-              </Modal>
 
               <Field label="A WORD FROM YOU" colors={colors} inputHeight={72}>
                 <TextInput
@@ -274,79 +197,6 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  dateCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: 16,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two + 2,
-    minHeight: 56,
-  },
-  dateText: {
-    flex: 1,
-    gap: 2,
-  },
-  datePill: {
-    borderRadius: 10,
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: Spacing.one + 2,
-  },
-  datePillText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  dateSheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.six,
-    gap: Spacing.two,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    marginBottom: Spacing.one,
-  },
-  dateSheetTitle: {
-    fontFamily: Fonts.serif,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
-  },
-  dateCalendar: {
-    width: '100%',
-    height: 330,
-  },
-  dateLabel: {
-    fontFamily: Fonts.mono,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  dateHint: {
-    fontSize: 13,
-  },
-  dateControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  dateClear: {
-    fontSize: 15,
-    paddingHorizontal: Spacing.one,
-  },
-  dateAdd: {
-    fontSize: 15,
-    fontWeight: '600',
   },
   message: {
     fontSize: 15,
