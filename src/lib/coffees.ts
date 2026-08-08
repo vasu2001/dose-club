@@ -116,19 +116,27 @@ export type CoffeeInput = {
   roaster_notes: string | null;
 };
 
-/** Creates a coffee (reusing the roaster by name) and returns it. */
-export async function createCoffee(ownerId: string, input: CoffeeInput): Promise<Coffee> {
-  const { roaster_name, ...fields } = input;
-  const { data: roasterId, error: roasterError } = await supabase.rpc(
-    'get_or_create_roaster',
-    { p_name: roaster_name },
-  );
-  if (roasterError) throw roasterError;
+/**
+ * Get-or-create against the shared catalog: (roaster, name) is unique
+ * case-insensitively, so retyping an existing coffee returns the existing
+ * row instead of a duplicate.
+ */
+export async function createCoffee(_ownerId: string, input: CoffeeInput): Promise<Coffee> {
+  const { data: coffeeId, error: rpcError } = await supabase.rpc('get_or_create_coffee', {
+    p_roaster_name: input.roaster_name,
+    p_name: input.name,
+    p_origin: input.origin,
+    p_varietal: input.varietal,
+    p_process: input.process,
+    p_roast_level: input.roast_level,
+    p_roaster_notes: input.roaster_notes,
+  });
+  if (rpcError) throw rpcError;
 
   const { data, error } = await supabase
     .from('coffees')
-    .insert({ created_by: ownerId, roaster_id: roasterId as string, ...fields })
     .select(COFFEE_SELECT)
+    .eq('id', coffeeId as string)
     .single();
   if (error) throw error;
   return data as unknown as Coffee;

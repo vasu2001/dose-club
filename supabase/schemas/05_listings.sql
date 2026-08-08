@@ -6,6 +6,9 @@ create table public.listings (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
   coffee_id uuid not null references public.coffees (id) on delete cascade,
+  -- The stash bag this listing shares from, when created from inventory.
+  -- roast_date is copied from the bag at creation; older listings have no bag.
+  bag_id uuid references public.bags (id) on delete set null,
   roast_date date,
   dose_grams integer not null default 18 check (dose_grams between 5 and 100),
   status text not null default 'active' check (status in ('active', 'closed')),
@@ -15,6 +18,7 @@ create table public.listings (
 
 create index listings_owner_id_idx on public.listings (owner_id);
 create index listings_coffee_id_idx on public.listings (coffee_id);
+create index listings_bag_id_idx on public.listings (bag_id);
 create index listings_status_created_at_idx on public.listings (status, created_at desc);
 
 alter table public.listings enable row level security;

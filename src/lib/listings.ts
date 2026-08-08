@@ -12,6 +12,7 @@ export type ListingOwner = {
 export type Listing = {
   id: string;
   owner_id: string;
+  bag_id: string | null;
   roast_date: string | null;
   dose_grams: number;
   status: 'active' | 'closed';
@@ -20,7 +21,7 @@ export type Listing = {
   owner: ListingOwner | null;
 };
 
-const LISTING_SELECT = `id, owner_id, roast_date, dose_grams, status, created_at,
+const LISTING_SELECT = `id, owner_id, bag_id, roast_date, dose_grams, status, created_at,
   coffee:coffees!listings_coffee_id_fkey(${COFFEE_SELECT}),
   owner:profiles!listings_owner_id_fkey(username, display_name, city)`;
 
@@ -56,6 +57,8 @@ export async function fetchListing(id: string): Promise<Listing | null> {
 
 export type ListingInput = {
   coffee_id: string;
+  /** Stash bag this dose is shared from, when listing from inventory. */
+  bag_id?: string | null;
   roast_date: string | null;
   dose_grams: number;
 };
@@ -118,7 +121,7 @@ export type Proposal = {
 
 // Same as LISTING_SELECT but with the owner's phone — trade participants
 // need it to arrange the exchange once a proposal is accepted.
-const PROPOSAL_LISTING_SELECT = `id, owner_id, roast_date, dose_grams, status, created_at,
+const PROPOSAL_LISTING_SELECT = `id, owner_id, bag_id, roast_date, dose_grams, status, created_at,
   coffee:coffees!listings_coffee_id_fkey(${COFFEE_SELECT}),
   owner:profiles!listings_owner_id_fkey(username, display_name, city, phone)`;
 
