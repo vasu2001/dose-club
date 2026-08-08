@@ -1,8 +1,8 @@
 import { Button, Host, TextInput } from '@expo/ui';
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
-import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -20,8 +20,10 @@ import { Field } from '@/components/form-field';
 import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { fetchBag } from '@/lib/bags';
 import { type Coffee } from '@/lib/coffees';
 import { createListing } from '@/lib/listings';
+import { queryKeys } from '@/lib/query';
 import { createReview } from '@/lib/reviews';
 
 /** Local YYYY-MM-DD (toISOString would shift the day across timezones). */
@@ -52,6 +54,7 @@ function StepLabel({
 
 export default function ShareDoseScreen() {
   const { session } = useAuth();
+  const { bagId } = useLocalSearchParams<{ bagId?: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const scheme = useColorScheme();
@@ -68,6 +71,18 @@ export default function ShareDoseScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Sharing from a stash bag: the coffee and roast date come from the bag.
+  const { data: bag } = useQuery({
+    queryKey: queryKeys.bag(bagId ?? ''),
+    queryFn: () => fetchBag(bagId as string),
+    enabled: !!bagId,
+  });
+  useEffect(() => {
+    if (!bag) return;
+    setCoffee(bag.coffee);
+    if (bag.roast_date) setRoastDate(new Date(`${bag.roast_date}T00:00:00`));
+  }, [bag]);
+
   const submit = async () => {
     if (busy || !session || !coffee) return;
     if (dose == null || dose < 5 || dose > 100) {
@@ -79,6 +94,7 @@ export default function ShareDoseScreen() {
     try {
       const message = await createListing(session.user.id, {
         coffee_id: coffee.id,
+        bag_id: bagId ?? null,
         roast_date: roastDate ? toIsoDate(roastDate) : null,
         dose_grams: dose,
       });

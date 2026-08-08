@@ -67,6 +67,8 @@ function RootNavigator() {
         <Stack.Protected guard={!!session && complete}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="share-dose" options={pushedScreen} />
+          <Stack.Screen name="add-bag" options={pushedScreen} />
+          <Stack.Screen name="bag/[id]" options={pushedScreen} />
           <Stack.Screen name="listing/[id]" options={pushedScreen} />
           <Stack.Screen name="propose/[listingId]" options={pushedScreen} />
           <Stack.Screen name="trade/[id]" options={pushedScreen} />
