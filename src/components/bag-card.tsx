@@ -37,7 +37,16 @@ function Stat({ label, value, color, valueColor }: {
   );
 }
 
-export function BagCard({ bag, onPress }: { bag: Bag; onPress?: () => void }) {
+export function BagCard({
+  bag,
+  listed,
+  onPress,
+}: {
+  bag: Bag;
+  /** Bag currently has an active listing sharing it. */
+  listed?: boolean;
+  onPress?: () => void;
+}) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const rested = restedDays(bag);
@@ -58,7 +67,14 @@ export function BagCard({ bag, onPress }: { bag: Bag; onPress?: () => void }) {
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>
           {bag.coffee.name}
         </Text>
-        <BagStatusChip status={bag.status} />
+        <View style={styles.chips}>
+          {listed && (
+            <View style={[styles.chip, { backgroundColor: colors.tint }]}>
+              <Text style={[styles.chipText, { color: colors.background }]}>LISTED</Text>
+            </View>
+          )}
+          <BagStatusChip status={bag.status} />
+        </View>
       </View>
 
       <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -108,6 +124,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: '700',
+  },
+  chips: {
+    flexDirection: 'row',
+    gap: Spacing.one,
   },
   chip: {
     borderRadius: 8,

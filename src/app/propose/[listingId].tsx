@@ -19,13 +19,9 @@ import { ScreenShell } from '@/components/screen-shell';
 import { ListingCardSkeleton } from '@/components/skeleton';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { fetchMyBags, restedDays, type Bag } from '@/lib/bags';
 import { type Coffee } from '@/lib/coffees';
-import {
-  createProposal,
-  fetchListing,
-  fetchMyListings,
-  type Listing,
-} from '@/lib/listings';
+import { createProposal, fetchListing, fetchMyListings } from '@/lib/listings';
 import { queryKeys } from '@/lib/query';
 import { createReview } from '@/lib/reviews';
 
@@ -33,7 +29,9 @@ import { createReview } from '@/lib/reviews';
 type OfferItem = {
   key: string;
   coffee: Coffee;
-  /** Set when the item is one of the proposer's own shelf listings. */
+  /** Set when the item comes from one of the proposer's stash bags. */
+  bagId: string | null;
+  /** The proposer's active listing on that bag, if it has one. */
   listingId: string | null;
   dose: number | null;
 };
@@ -56,49 +54,61 @@ function StepLabel({
   );
 }
 
-/** Tap-to-toggle row for one of the proposer's own shelf listings. */
-function ShelfRow({
-  listing,
+/** Tap-to-toggle row for one of the proposer's stash bags; dose editable when selected. */
+function BagRow({
+  bag,
   selected,
+  dose,
   onToggle,
+  onDose,
   colors,
 }: {
-  listing: Listing;
+  bag: Bag;
   selected: boolean;
+  dose: number | null;
   onToggle: () => void;
+  onDose: (dose: number | null) => void;
   colors: (typeof Colors)['light' | 'dark'];
 }) {
+  const rested = restedDays(bag);
+  const meta = [
+    bag.coffee.roaster.name,
+    bag.status === 'frozen' ? 'frozen' : null,
+    rested != null ? `${rested}d rest` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <Pressable
       onPress={onToggle}
       style={[
-        styles.shelfRow,
+        styles.bagRow,
         {
           backgroundColor: selected ? colors.backgroundSelected : colors.backgroundElement,
           borderColor: selected ? colors.tint : 'transparent',
         },
       ]}>
-      <View
-        style={[
-          styles.checkDot,
-          {
-            borderColor: selected ? colors.tint : colors.textSecondary,
-            backgroundColor: selected ? colors.tint : 'transparent',
-          },
-        ]}>
-        {selected && <Text style={[styles.checkMark, { color: colors.background }]}>✓</Text>}
+      <View style={styles.bagHeader}>
+        <View
+          style={[
+            styles.checkDot,
+            {
+              borderColor: selected ? colors.tint : colors.textSecondary,
+              backgroundColor: selected ? colors.tint : 'transparent',
+            },
+          ]}>
+          {selected && <Text style={[styles.checkMark, { color: colors.background }]}>✓</Text>}
+        </View>
+        <View style={styles.bagText}>
+          <Text style={[styles.bagName, { color: colors.text }]} numberOfLines={1}>
+            {bag.coffee.name}
+          </Text>
+          <Text style={[styles.bagMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
       </View>
-      <View style={styles.shelfText}>
-        <Text style={[styles.shelfName, { color: colors.text }]} numberOfLines={1}>
-          {listing.coffee.name}
-        </Text>
-        <Text style={[styles.shelfMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-          {listing.coffee.roaster.name}
-        </Text>
-      </View>
-      <Text style={[styles.shelfDose, { color: selected ? colors.tint : colors.textSecondary }]}>
-        {listing.dose_grams}g
-      </Text>
+      {selected && <DoseChips value={dose} onChange={onDose} />}
     </Pressable>
   );
 }
@@ -126,6 +136,13 @@ export default function ProposeScreen() {
     queryFn: () => fetchListing(listingId as string),
     enabled: listingId != null,
   });
+  const { data: myBags = [] } = useQuery({
+    queryKey: queryKeys.myBags(userId ?? ''),
+    queryFn: () => fetchMyBags(userId as string),
+    enabled: userId != null,
+  });
+  // Only needed to keep the shelf-listing link on items offered from a
+  // bag that is also listed.
   const { data: myListings = [] } = useQuery({
     queryKey: queryKeys.myListings(userId ?? ''),
     queryFn: () => fetchMyListings(userId as string),
@@ -133,21 +150,34 @@ export default function ProposeScreen() {
   });
   const loaded = !isLoading;
 
-  const shelf = myListings.filter((l) => l.status === 'active');
-  const selectedListingIds = new Set(
-    items.filter((i) => i.listingId != null).map((i) => i.listingId),
+  // The dose the other side is sharing — the natural starting point for a
+  // like-for-like swap. Editable per item below.
+  const defaultDose = listing?.dose_grams ?? 18;
+
+  const stash = myBags.filter((b) => b.status !== 'finished');
+  const listingByBag = new Map(
+    myListings
+      .filter((l) => l.status === 'active' && l.bag_id != null)
+      .map((l) => [l.bag_id as string, l.id]),
   );
-  const libraryItems = items.filter((i) => i.listingId == null);
+  const selectedBagIds = new Set(items.filter((i) => i.bagId != null).map((i) => i.bagId));
+  const libraryItems = items.filter((i) => i.bagId == null);
   const hasOffer = items.length > 0;
 
-  const toggleShelf = (l: Listing) => {
+  const toggleBag = (bag: Bag) => {
     setError(null);
     setItems((prev) =>
-      prev.some((i) => i.listingId === l.id)
-        ? prev.filter((i) => i.listingId !== l.id)
+      prev.some((i) => i.bagId === bag.id)
+        ? prev.filter((i) => i.bagId !== bag.id)
         : [
             ...prev,
-            { key: `shelf-${l.id}`, coffee: l.coffee, listingId: l.id, dose: l.dose_grams },
+            {
+              key: `bag-${bag.id}`,
+              coffee: bag.coffee,
+              bagId: bag.id,
+              listingId: listingByBag.get(bag.id) ?? null,
+              dose: defaultDose,
+            },
           ],
     );
   };
@@ -158,7 +188,13 @@ export default function ProposeScreen() {
     setPicking(false);
     setItems((prev) => [
       ...prev,
-      { key: `lib-${coffee.id}-${prev.length}`, coffee, listingId: null, dose: 18 },
+      {
+        key: `lib-${coffee.id}-${prev.length}`,
+        coffee,
+        bagId: null,
+        listingId: null,
+        dose: defaultDose,
+      },
     ]);
   };
 
@@ -244,23 +280,28 @@ export default function ProposeScreen() {
         bottomOffset={24}>
         <StepLabel step="01" title="YOUR OFFER" colors={colors} />
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          Put one or more coffees in the jar — off your shelf, from your library, or both.
+          Pick from your stash — doses start at their {listing.dose_grams}g, tweak as you like.
         </Text>
 
-        {shelf.length > 0 && (
+        {stash.length > 0 && (
           <>
             <Text style={[styles.groupLabel, { color: colors.textSecondary }]}>
-              FROM YOUR SHELF
+              FROM YOUR STASH
             </Text>
-            {shelf.map((l) => (
-              <ShelfRow
-                key={l.id}
-                listing={l}
-                selected={selectedListingIds.has(l.id)}
-                onToggle={() => toggleShelf(l)}
-                colors={colors}
-              />
-            ))}
+            {stash.map((bag) => {
+              const item = items.find((i) => i.bagId === bag.id);
+              return (
+                <BagRow
+                  key={bag.id}
+                  bag={bag}
+                  selected={selectedBagIds.has(bag.id)}
+                  dose={item?.dose ?? defaultDose}
+                  onToggle={() => toggleBag(bag)}
+                  onDose={(d) => item && setDose(item.key, d)}
+                  colors={colors}
+                />
+              );
+            })}
           </>
         )}
 
@@ -278,10 +319,10 @@ export default function ProposeScreen() {
             ]}>
             <View style={styles.libraryHeader}>
               <View style={styles.libraryText}>
-                <Text style={[styles.shelfName, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.bagName, { color: colors.text }]} numberOfLines={1}>
                   {item.coffee.name}
                 </Text>
-                <Text style={[styles.shelfMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                <Text style={[styles.bagMeta, { color: colors.textSecondary }]} numberOfLines={1}>
                   {item.coffee.roaster.name}
                 </Text>
               </View>
@@ -303,7 +344,7 @@ export default function ProposeScreen() {
         ) : (
           <Pressable onPress={() => setPicking(true)} hitSlop={8}>
             <Text style={[styles.addLink, { color: colors.tint }]}>
-              + Add a coffee from your library
+              + Add a coffee that's not in your stash
             </Text>
           </Pressable>
         )}
@@ -317,7 +358,7 @@ export default function ProposeScreen() {
                   key={item.key}
                   style={[styles.summaryText, { color: colors.textSecondary }]}>
                   {item.dose ?? '—'}g of {item.coffee.name}
-                  {item.listingId != null ? '  · shelf' : ''}
+                  {item.bagId != null ? '  · stash' : ''}
                 </Text>
               ))}
               <Text style={[styles.summaryTotal, { color: colors.text }]}>
@@ -412,14 +453,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: Spacing.one,
   },
-  shelfRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+  bagRow: {
     borderRadius: 16,
     borderWidth: 1.5,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
+    gap: Spacing.two,
+  },
+  bagHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   checkDot: {
     width: 22,
@@ -434,21 +478,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
-  shelfText: {
+  bagText: {
     flex: 1,
     gap: 1,
   },
-  shelfName: {
+  bagName: {
     fontSize: 16,
     fontWeight: '600',
   },
-  shelfMeta: {
+  bagMeta: {
     fontSize: 13,
-  },
-  shelfDose: {
-    fontFamily: Fonts.mono,
-    fontSize: 14,
-    fontWeight: '600',
   },
   libraryCard: {
     borderRadius: 16,

@@ -16,6 +16,7 @@ import {
 import { BagStatusChip } from '@/components/bag-card';
 import { ScreenShell } from '@/components/screen-shell';
 import { Colors, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth';
 import {
   deleteBag,
   fetchBag,
@@ -24,6 +25,7 @@ import {
   restedDays,
   type BagEventType,
 } from '@/lib/bags';
+import { closeListing, fetchMyListings } from '@/lib/listings';
 import { queryKeys } from '@/lib/query';
 
 const EVENT_LABEL: Record<BagEventType, string> = {
@@ -44,6 +46,7 @@ function formatWhen(iso: string): string {
 
 export default function BagScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { session } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const scheme = useColorScheme();
@@ -59,9 +62,33 @@ export default function BagScreen() {
     queryFn: () => fetchBag(id),
     enabled: !!id,
   });
+  const userId = session?.user.id;
+  const { data: myListings = [] } = useQuery({
+    queryKey: queryKeys.myListings(userId ?? ''),
+    queryFn: () => fetchMyListings(userId as string),
+    enabled: userId != null,
+  });
+  const activeListings = myListings.filter(
+    (l) => l.status === 'active' && l.bag_id === id,
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['bags'] });
+    queryClient.invalidateQueries({ queryKey: ['listings'] });
+  };
+
+  const unlist = async () => {
+    if (busy || activeListings.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await Promise.all(activeListings.map((l) => closeListing(l.id)));
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const act = async (type: Exclude<BagEventType, 'added'>) => {
@@ -120,6 +147,13 @@ export default function BagScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>
         <View style={styles.chipRow}>
+          {activeListings.length > 0 && (
+            <View style={[styles.listedChip, { backgroundColor: colors.tint }]}>
+              <Text style={[styles.listedChipText, { color: colors.background }]}>
+                LISTED
+              </Text>
+            </View>
+          )}
           <BagStatusChip status={bag.status} />
         </View>
 
@@ -165,17 +199,29 @@ export default function BagScreen() {
           <Text style={[styles.message, { color: colors.danger }]}>{error}</Text>
         )}
 
-        {bag.status !== 'finished' && (
+        {activeListings.length > 0 ? (
           <Host matchContents seedColor={colors.tint} style={styles.share}>
             <Button
-              variant="filled"
-              label="Share a dose of this"
-              style={{ width: buttonWidth, height: 50 }}
-              onPress={() =>
-                router.push({ pathname: '/share-dose', params: { bagId: bag.id } })
-              }
+              variant="outlined"
+              label={busy ? 'Removing…' : 'Remove from trade'}
+              disabled={busy}
+              style={{ width: buttonWidth, height: 44 }}
+              onPress={unlist}
             />
           </Host>
+        ) : (
+          bag.status !== 'finished' && (
+            <Host matchContents seedColor={colors.tint} style={styles.share}>
+              <Button
+                variant="filled"
+                label="Share a dose of this"
+                style={{ width: buttonWidth, height: 50 }}
+                onPress={() =>
+                  router.push({ pathname: '/share-dose', params: { bagId: bag.id } })
+                }
+              />
+            </Host>
+          )
         )}
 
         <Text style={[styles.timelineTitle, { color: colors.accent }]}>TIMELINE</Text>
@@ -246,6 +292,17 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  listedChip: {
+    borderRadius: 8,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  listedChipText: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
   statsCard: {
     flexDirection: 'row',
