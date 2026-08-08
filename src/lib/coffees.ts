@@ -59,6 +59,17 @@ export async function fetchMyCoffees(userId: string): Promise<Coffee[]> {
   return (data as unknown as Coffee[]) ?? [];
 }
 
+/** Latest additions to the shared catalog — discovery fodder for the stash. */
+export async function fetchRecentCoffees(limit = 8): Promise<Coffee[]> {
+  const { data, error } = await supabase
+    .from('coffees')
+    .select(COFFEE_SELECT)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as unknown as Coffee[]) ?? [];
+}
+
 /**
  * Search the shared catalog by coffee name or roaster name, so users pick
  * existing entries instead of creating near-duplicates.

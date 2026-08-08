@@ -57,12 +57,14 @@ export type BagInput = {
   coffee_id: string;
   roast_date: string | null;
   size_grams: number | null;
-  /** Bag goes straight into the freezer (e.g. dose tubes frozen on arrival). */
+  /** Bag is in the freezer right now (e.g. dose tubes frozen on arrival). */
   frozen: boolean;
+  /** When the current freeze started; backdatable, defaults to now. */
+  frozen_since?: Date | null;
 };
 
 export async function createBag(ownerId: string, input: BagInput): Promise<Bag> {
-  const { frozen, ...fields } = input;
+  const { frozen, frozen_since, ...fields } = input;
   const { data, error } = await supabase
     .from('bags')
     .insert({ owner_id: ownerId, status: frozen ? 'frozen' : 'shelf', ...fields })
@@ -71,9 +73,19 @@ export async function createBag(ownerId: string, input: BagInput): Promise<Bag> 
   if (error) throw error;
   const bag = data as unknown as Bag;
 
-  // Timeline seed; a failure here shouldn't lose the bag itself.
-  const seed: { bag_id: string; type: BagEventType }[] = [{ bag_id: bag.id, type: 'added' }];
-  if (frozen) seed.push({ bag_id: bag.id, type: 'frozen' });
+  // Timeline seed; a failure here shouldn't lose the bag itself. The 'added'
+  // event predates a backdated freeze so the timeline reads in order.
+  const frozenAt = frozen ? (frozen_since ?? new Date()) : null;
+  const seed: { bag_id: string; type: BagEventType; happened_at: string }[] = [
+    {
+      bag_id: bag.id,
+      type: 'added',
+      happened_at: (frozenAt && frozenAt < new Date() ? frozenAt : new Date()).toISOString(),
+    },
+  ];
+  if (frozenAt) {
+    seed.push({ bag_id: bag.id, type: 'frozen', happened_at: frozenAt.toISOString() });
+  }
   const { data: events } = await supabase
     .from('bag_events')
     .insert(seed)

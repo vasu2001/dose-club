@@ -17,6 +17,7 @@ import { useAuth } from '@/context/auth';
 import {
   createCoffee,
   fetchMyCoffees,
+  fetchRecentCoffees,
   searchCoffees,
   searchRoasters,
   type Coffee,
@@ -28,6 +29,12 @@ import { queryKeys } from '@/lib/query';
 type CoffeePickerProps = {
   selected: Coffee | null;
   onSelect: (coffee: Coffee | null) => void;
+  /**
+   * Coffees already in the user's stash. When set, the picker suggests
+   * recent catalog additions NOT in the stash (instead of "your coffees"),
+   * and search results already in the stash get an IN STASH badge.
+   */
+  stashCoffeeIds?: string[];
 };
 
 function coffeeMeta(coffee: Coffee): string {
@@ -39,12 +46,12 @@ function coffeeMeta(coffee: Coffee): string {
 /** Compact result row shown under the search field. */
 function ResultRow({
   coffee,
-  mine,
+  badge,
   onPress,
   colors,
 }: {
   coffee: Coffee;
-  mine: boolean;
+  badge: string | null;
   onPress: () => void;
   colors: (typeof Colors)['light' | 'dark'];
 }) {
@@ -64,8 +71,8 @@ function ResultRow({
           {coffee.origin ? ` · ${coffee.origin}` : ''}
         </Text>
       </View>
-      {mine && (
-        <Text style={[styles.resultBadge, { color: colors.accent }]}>YOURS</Text>
+      {badge != null && (
+        <Text style={[styles.resultBadge, { color: colors.accent }]}>{badge}</Text>
       )}
     </Pressable>
   );
@@ -79,7 +86,7 @@ function ResultRow({
  * "change" affordance. Adding is a last resort: two required fields, the
  * rest tucked behind "more detail".
  */
-export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
+export function CoffeePicker({ selected, onSelect, stashCoffeeIds }: CoffeePickerProps) {
   const { session } = useAuth();
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -106,12 +113,18 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
   const roasterNotes = useRef('');
 
   const userId = session?.user.id;
+  const discovery = stashCoffeeIds != null;
   const { data: mine = [], isLoading } = useQuery({
     queryKey: queryKeys.myCoffees(userId ?? ''),
     queryFn: () => fetchMyCoffees(userId as string),
-    enabled: userId != null,
+    enabled: userId != null && !discovery,
   });
-  const loaded = !isLoading;
+  const { data: recent = [], isLoading: recentLoading } = useQuery({
+    queryKey: queryKeys.recentCoffees,
+    queryFn: () => fetchRecentCoffees(12),
+    enabled: discovery,
+  });
+  const loaded = discovery ? !recentLoading : !isLoading;
 
   useEffect(() => {
     const q = query.trim();
@@ -321,12 +334,22 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
     );
   }
 
-  // ── Idle: search-first, your coffees a tap away. ─────────────────────
+  // ── Idle: search-first. Suggestions depend on context: picking for the
+  // stash surfaces what's new in the club (minus what you already own);
+  // elsewhere your own coffees are a tap away. ──────────────────────────
   const q = query.trim();
+  const stashIds = new Set(stashCoffeeIds ?? []);
   const mineIds = new Set(mine.map((c) => c.id));
+  const idleRows = discovery
+    ? recent.filter((c) => !stashIds.has(c.id)).slice(0, 4)
+    : mine.slice(0, 4);
   const rows = q
     ? [...results.filter((c) => mineIds.has(c.id)), ...results.filter((c) => !mineIds.has(c.id))]
-    : mine.slice(0, 4);
+    : idleRows;
+  const badgeFor = (coffee: Coffee): string | null => {
+    if (discovery) return stashIds.has(coffee.id) ? 'IN STASH' : null;
+    return q && mineIds.has(coffee.id) ? 'YOURS' : null;
+  };
 
   return (
     <View style={styles.container}>
@@ -354,14 +377,14 @@ export function CoffeePicker({ selected, onSelect }: CoffeePickerProps) {
         <View style={[styles.resultsCard, { backgroundColor: colors.backgroundElement }]}>
           {!q && (
             <Text style={[styles.resultsHeading, { color: colors.textSecondary }]}>
-              FROM YOUR SHELF
+              {discovery ? 'NEW IN THE CLUB' : 'FROM YOUR SHELF'}
             </Text>
           )}
           {rows.map((coffee) => (
             <ResultRow
               key={coffee.id}
               coffee={coffee}
-              mine={q ? mineIds.has(coffee.id) : false}
+              badge={badgeFor(coffee)}
               onPress={() => onSelect(coffee)}
               colors={colors}
             />

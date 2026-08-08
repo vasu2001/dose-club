@@ -39,6 +39,7 @@ export const queryKeys = {
   myReceivedReview: (proposalId: string, userId: string) =>
     ['reviews', 'received', proposalId, userId] as const,
   myCoffees: (userId: string) => ['coffees', 'mine', userId] as const,
+  recentCoffees: ['coffees', 'recent'] as const,
   myBags: (userId: string) => ['bags', 'mine', userId] as const,
   bag: (id: string) => ['bags', 'detail', id] as const,
   notifications: ['notifications'] as const,
