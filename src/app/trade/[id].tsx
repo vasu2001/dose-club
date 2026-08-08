@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -163,6 +164,9 @@ export default function TradeDetailScreen() {
     : 'You';
   const otherUserId = iAmProposer ? proposal.listing?.owner_id : proposal.proposer_id;
   const otherUserName = iAmProposer ? ownerName : proposerName;
+  const otherUserPhone = iAmProposer
+    ? proposal.listing?.owner?.phone
+    : proposal.proposer?.phone;
   const timeline = buildTimeline(proposal, proposerName, ownerName);
   const myConfirmation = iAmProposer
     ? proposal.proposer_confirmed_at
@@ -345,6 +349,29 @@ export default function TradeDetailScreen() {
           </Host>
         )}
 
+        {proposal.status === 'accepted' && (
+          <View style={[styles.side, { backgroundColor: colors.backgroundElement }]}>
+            <Text style={[styles.sideHeading, { color: colors.textSecondary }]}>
+              ARRANGE THE EXCHANGE
+            </Text>
+            <Text style={[styles.muted, { color: colors.text }]}>
+              Trade's on! Contact {otherUserName} directly to hand over the doses, then
+              confirm below once it's done.
+            </Text>
+            {otherUserPhone != null ? (
+              <Pressable onPress={() => Linking.openURL(`tel:${otherUserPhone}`)}>
+                <Text style={[styles.phoneLink, { color: colors.tint }]}>
+                  📞 {otherUserPhone}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.muted, { color: colors.textSecondary }]}>
+                {otherUserName} hasn't added a phone number yet.
+              </Text>
+            )}
+          </View>
+        )}
+
         {proposal.status === 'accepted' &&
           (myConfirmation ? (
             <Text style={[styles.muted, { color: colors.textSecondary }]}>
@@ -521,6 +548,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontStyle: 'italic',
+  },
+  phoneLink: {
+    fontFamily: Fonts.mono,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: Spacing.one,
   },
   profileLink: {
     fontSize: 15,

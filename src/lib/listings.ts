@@ -5,6 +5,8 @@ export type ListingOwner = {
   username: string | null;
   display_name: string | null;
   city: string | null;
+  /** Only fetched on proposal queries — the contact for an accepted trade. */
+  phone?: string | null;
 };
 
 export type Listing = {
@@ -114,13 +116,19 @@ export type Proposal = {
   proposer: ListingOwner | null;
 };
 
+// Same as LISTING_SELECT but with the owner's phone — trade participants
+// need it to arrange the exchange once a proposal is accepted.
+const PROPOSAL_LISTING_SELECT = `id, owner_id, roast_date, dose_grams, status, created_at,
+  coffee:coffees!listings_coffee_id_fkey(${COFFEE_SELECT}),
+  owner:profiles!listings_owner_id_fkey(username, display_name, city, phone)`;
+
 const PROPOSAL_SELECT = `id, listing_id, proposer_id, message, status,
   proposer_confirmed_at, owner_confirmed_at, accepted_at, declined_at, withdrawn_at, completed_at, created_at,
-  listing:listings!proposals_listing_id_fkey(${LISTING_SELECT}),
+  listing:listings!proposals_listing_id_fkey(${PROPOSAL_LISTING_SELECT}),
   items:proposal_items!proposal_items_proposal_id_fkey(id, listing_id, dose_grams,
     coffee:coffees!proposal_items_coffee_id_fkey(${COFFEE_SELECT}),
     listing:listings!proposal_items_listing_id_fkey(id, status)),
-  proposer:profiles!proposals_proposer_id_fkey(username, display_name, city)`;
+  proposer:profiles!proposals_proposer_id_fkey(username, display_name, city, phone)`;
 
 export function offerTotalGrams(items: ProposalItem[]): number {
   return items.reduce((sum, item) => sum + item.dose_grams, 0);

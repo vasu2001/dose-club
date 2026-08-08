@@ -15,7 +15,7 @@ import { CityPicker } from '@/components/city-picker';
 import { Field } from '@/components/form-field';
 import { Fonts, Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { saveProfile, type Profile } from '@/lib/profile';
+import { normalizeIndianPhone, saveProfile, type Profile } from '@/lib/profile';
 
 type ProfileFormProps = {
   profile: Profile | null;
@@ -51,7 +51,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
     if (busy || !session) return;
     const name = displayName.current.trim();
     const handle = username.current.trim().toLowerCase();
-    const phoneNumber = phone.current.trim();
+    const phoneNumber = normalizeIndianPhone(phone.current);
 
     const errors: typeof fieldErrors = {};
     if (!name) {
@@ -70,10 +70,10 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
     } else if (!isKnownCity(city)) {
       errors.city = 'Pick your city from the list.';
     }
-    if (!phoneNumber) {
+    if (!phone.current.trim()) {
       errors.phone = 'Add a phone number so trade partners can reach you.';
-    } else if (!/^\+?[0-9][0-9 -]{6,18}$/.test(phoneNumber)) {
-      errors.phone = 'Digits only (spaces and dashes fine), optional leading +.';
+    } else if (!phoneNumber) {
+      errors.phone = 'Enter a valid 10-digit Indian mobile number (starts with 6–9).';
     }
     setFieldErrors(errors);
     setError(null);
@@ -86,7 +86,7 @@ export function ProfileForm({ profile, submitLabel, onSaved }: ProfileFormProps)
         display_name: name,
         username: handle,
         city: city as string,
-        phone: phoneNumber,
+        phone: phoneNumber as string,
         bio: bio.current.trim() || null,
       });
       if (message) {

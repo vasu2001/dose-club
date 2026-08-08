@@ -7,7 +7,8 @@ create table public.profiles (
   -- City is required for a complete profile (trades are local); enforced in
   -- the app's isProfileComplete gate since rows are auto-created empty.
   city text check (char_length(city) <= 60),
-  phone text check (phone ~ '^\+?[0-9][0-9 -]{6,18}$'),
+  -- India-only for now: normalized +91 followed by a 10-digit mobile (6-9 start).
+  phone text check (phone ~ '^\+91[6-9][0-9]{9}$'),
   bio text check (char_length(bio) <= 280),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
