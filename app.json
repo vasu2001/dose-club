@@ -8,9 +8,11 @@
     "scheme": "doseclub",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.vasu2001.doseclub"
     },
     "android": {
+      "package": "com.vasu2001.doseclub",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
