@@ -19,14 +19,15 @@ Dose Club solves this by letting people trade portions of their bags: you share 
 
 ## Core flow (v1)
 
-1. **Coffee library**: Users save coffees (roaster, name, origin, process, roast level, notes) once and reuse them everywhere — when sharing and when proposing.
-2. **Share**: A user creates a share listing from a saved coffee plus the specifics of the bag (roast date, dose size). A listing stays active until the owner closes it — one bag can serve several trades.
-3. **Browse**: Other users browse available listings (search + filters for roast, process, city, freshness).
-4. **Propose**: An interested user proposes a trade on a listing by offering a bundle of 1–5 items, each a coffee + dose (5–100g). An item can come straight off the proposer's own shelf (linked to their listing) or from their library — any combination. One pending proposal per proposer per listing; created atomically via the `create_proposal` RPC.
-5. **Decide**: The listing owner accepts or declines each proposal independently. Accepting affects ONLY that proposal — rival pending proposals survive and can each be accepted too; one listing serves many trades in parallel.
-6. **Confirm**: After acceptance, both sides confirm the physical exchange happened; when both confirm, the trade is completed. At completion each side gets an optional prompt to close any of their still-active listings involved — listings NEVER close automatically.
-7. **Close**: Closing a listing is the only auto-archive: pending proposals ON it become `listing_closed`, and pending proposals OFFERING it as an item are auto-withdrawn. Accepted trades in flight are untouched.
-8. **Review**: After completion each side can review the coffee(s) they received.
+1. **Coffee library**: Users save coffees (roaster, name, origin, process, roast level, notes) once and reuse them everywhere — when sharing and when proposing. The catalog is shared and deduplicated: coffees are unique per (roaster, name) case-insensitively via the `get_or_create_coffee` RPC, and a coffee can't be renamed/deleted once someone else's listing, offer, bag, or review references it — this keeps reviews and analytics converging on one row per real-world coffee.
+2. **Stash (inventory)**: Users track the physical bags they own (`bags` + `bag_events`). A bag is `shelf`, `frozen`, or `finished`; the timeline records freeze/thaw/open/finish events (backdatable, multiple freeze cycles). Rested days = days since roast minus days frozen — freezing pauses the rest clock. The stash is private to its owner.
+3. **Share**: A user creates a share listing — ideally from a stash bag (`listings.bag_id`, roast date copied from the bag) or directly from a saved coffee. A listing stays active until the owner closes it — one bag can serve several trades. Finishing a bag never closes its listings.
+4. **Browse**: Other users browse available listings (search + filters for roast, process, city, freshness).
+5. **Propose**: An interested user proposes a trade on a listing by offering a bundle of 1–5 items, each a coffee + dose (5–100g). An item can come straight off the proposer's own shelf (linked to their listing) or from their library — any combination. One pending proposal per proposer per listing; created atomically via the `create_proposal` RPC.
+6. **Decide**: The listing owner accepts or declines each proposal independently. Accepting affects ONLY that proposal — rival pending proposals survive and can each be accepted too; one listing serves many trades in parallel.
+7. **Confirm**: After acceptance, both sides confirm the physical exchange happened; when both confirm, the trade is completed. At completion each side gets an optional prompt to close any of their still-active listings involved — listings NEVER close automatically.
+8. **Close**: Closing a listing is the only auto-archive: pending proposals ON it become `listing_closed`, and pending proposals OFFERING it as an item are auto-withdrawn. Accepted trades in flight are untouched.
+9. **Review**: After completion each side can review the coffee(s) they received.
 
 ## Inbox & notifications
 

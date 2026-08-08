@@ -94,7 +94,9 @@ export default function ShareDoseScreen() {
     try {
       const message = await createListing(session.user.id, {
         coffee_id: coffee.id,
-        bag_id: bagId ?? null,
+        // Only link the bag if the user kept its coffee (they can swap in the
+        // picker) and the bag still exists.
+        bag_id: bag && coffee.id === bag.coffee.id ? bag.id : null,
         roast_date: roastDate ? toIsoDate(roastDate) : null,
         dose_grams: dose,
       });
