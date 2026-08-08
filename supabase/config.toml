@@ -7,3 +7,28 @@ project_id = "dose-club"
 
 [db.migrations]
 schema_paths = ["./schemas/*.sql"]
+
+# Auth configuration is pushed to the remote project with `supabase config push`.
+# NOTE: push fills undeclared [auth] keys with CLI defaults — keys below that
+# just mirror the remote (mfa.totp, max_frequency, otp_length) are pinned so a
+# push doesn't silently flip them.
+[auth]
+site_url = "doseclub://"
+additional_redirect_urls = ["doseclub://**"]
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+# Branded confirmation template lives in ./templates/confirmation.html.
+# It is NOT pushed: custom email templates need a paid plan or a custom SMTP
+# provider ("Email template modification is not available for free tier
+# projects using the default email provider"). Once SMTP is configured, add:
+# [auth.email.template.confirmation]
+# subject = "Confirm your Dose Club account ☕"
+# content_path = "./supabase/templates/confirmation.html"
