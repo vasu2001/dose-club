@@ -1,13 +1,17 @@
 import type { Session } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
+import { Alert, Platform } from 'react-native';
 
+import { createSessionFromUrl, isAuthUrl } from '@/lib/auth-link';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { registerPushToken, unregisterPushToken } from '@/lib/push';
 import { queryClient } from '@/lib/query';
@@ -71,6 +75,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
       subscription.subscription.unsubscribe();
     };
   }, []);
+
+  // Email confirmation links deep-link back into the app with tokens in the
+  // URL fragment; exchange them for a session (web handles this via
+  // detectSessionInUrl).
+  const incomingUrl = Linking.useLinkingURL();
+  const handledUrls = useRef(new Set<string>());
+  const handleAuthUrl = useCallback(async (url: string | null) => {
+    if (!url || Platform.OS === 'web' || !isAuthUrl(url)) return;
+    if (handledUrls.current.has(url)) return;
+    handledUrls.current.add(url);
+    const message = await createSessionFromUrl(url);
+    if (message) Alert.alert('Email confirmation', message);
+  }, []);
+
+  useEffect(() => {
+    Linking.getInitialURL().then(handleAuthUrl);
+  }, [handleAuthUrl]);
+
+  useEffect(() => {
+    void handleAuthUrl(incomingUrl);
+  }, [incomingUrl, handleAuthUrl]);
 
   const refreshProfile = useCallback(async () => {
     const userId = session?.user.id;
